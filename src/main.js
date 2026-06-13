@@ -4,9 +4,50 @@ import { api } from "./api.js";
 
 // Autocomplete Dictionaries
 const DEVICEMODELS_DB = [
+  // --- GALAXY Z SERIES (FOLDABLES / DOBRÁVEIS) ---
+  "Samsung Galaxy Z Fold 8 5G",
+  "Samsung Galaxy Z Fold 8",
+  "Samsung Galaxy Z Flip 8 5G",
+  "Samsung Galaxy Z Flip 8",
+  "Samsung Galaxy Z Fold 7 5G",
+  "Samsung Galaxy Z Fold 7",
+  "Samsung Galaxy Z Flip 7 5G",
+  "Samsung Galaxy Z Flip 7",
+  "Samsung Galaxy Z Fold Special Edition",
+  "Samsung Galaxy Z Fold 6 5G",
+  "Samsung Galaxy Z Fold 6",
+  "Samsung Galaxy Z Flip 6 5G",
+  "Samsung Galaxy Z Flip 6",
+  "Samsung Galaxy Z Fold 5 5G",
+  "Samsung Galaxy Z Fold 5",
+  "Samsung Galaxy Z Flip 5 5G",
+  "Samsung Galaxy Z Flip 5",
+  "Samsung Galaxy Z Fold 4 5G",
+  "Samsung Galaxy Z Fold 4",
+  "Samsung Galaxy Z Flip 4 5G",
+  "Samsung Galaxy Z Flip 4",
+  "Samsung Galaxy Z Fold 3 5G",
+  "Samsung Galaxy Z Fold 3",
+  "Samsung Galaxy Z Flip 3 5G",
+  "Samsung Galaxy Z Flip 3",
+  "Samsung Galaxy Z Fold 2 5G",
+  "Samsung Galaxy Z Fold 2",
+  "Samsung Galaxy Z Flip 5G",
+  "Samsung Galaxy Z Flip",
+
+  // --- GALAXY S SERIES ---
+  "Samsung Galaxy S26 Ultra",
+  "Samsung Galaxy S26+",
+  "Samsung Galaxy S26",
+  "Samsung Galaxy S25 Ultra",
+  "Samsung Galaxy S25+",
+  "Samsung Galaxy S25",
+  "Samsung Galaxy S25 Slim",
+  "Samsung Galaxy S25 FE",
   "Samsung Galaxy S24 Ultra",
   "Samsung Galaxy S24+",
   "Samsung Galaxy S24",
+  "Samsung Galaxy S24 FE",
   "Samsung Galaxy S23 Ultra",
   "Samsung Galaxy S23+",
   "Samsung Galaxy S23",
@@ -14,29 +55,144 @@ const DEVICEMODELS_DB = [
   "Samsung Galaxy S22 Ultra",
   "Samsung Galaxy S22+",
   "Samsung Galaxy S22",
+  "Samsung Galaxy S21 Ultra 5G",
   "Samsung Galaxy S21 Ultra",
+  "Samsung Galaxy S21+ 5G",
   "Samsung Galaxy S21+",
+  "Samsung Galaxy S21 5G",
   "Samsung Galaxy S21",
+  "Samsung Galaxy S21 FE 5G",
   "Samsung Galaxy S21 FE",
+  "Samsung Galaxy S20 Ultra 5G",
   "Samsung Galaxy S20 Ultra",
+  "Samsung Galaxy S20+ 5G",
   "Samsung Galaxy S20+",
+  "Samsung Galaxy S20 5G",
   "Samsung Galaxy S20",
+  "Samsung Galaxy S20 FE 5G",
   "Samsung Galaxy S20 FE",
+  "Samsung Galaxy S10 Lite",
+
+  // --- GALAXY NOTE SERIES ---
+  "Samsung Galaxy Note 20 Ultra 5G",
+  "Samsung Galaxy Note 20 Ultra",
+  "Samsung Galaxy Note 20 5G",
+  "Samsung Galaxy Note 20",
+  "Samsung Galaxy Note 10 Lite",
+  "Samsung Galaxy Note 10+ 5G",
+  "Samsung Galaxy Note 10+",
+  "Samsung Galaxy Note 10",
+
+  // --- GALAXY A SERIES ---
+  "Samsung Galaxy A57 5G",
+  "Samsung Galaxy A37 5G",
+  "Samsung Galaxy A27 5G",
+  "Samsung Galaxy A17 5G",
+  "Samsung Galaxy A56 5G",
+  "Samsung Galaxy A36 5G",
+  "Samsung Galaxy A26 5G",
+  "Samsung Galaxy A16 5G",
+  "Samsung Galaxy A06s",
+  "Samsung Galaxy A06",
   "Samsung Galaxy A55 5G",
-  "Samsung Galaxy A54 5G",
   "Samsung Galaxy A35 5G",
-  "Samsung Galaxy A34 5G",
   "Samsung Galaxy A25 5G",
   "Samsung Galaxy A15 5G",
+  "Samsung Galaxy A15 4G",
+  "Samsung Galaxy A05s",
+  "Samsung Galaxy A05",
+  "Samsung Galaxy A73 5G",
+  "Samsung Galaxy A54 5G",
+  "Samsung Galaxy A34 5G",
+  "Samsung Galaxy A24 5G",
   "Samsung Galaxy A14 5G",
+  "Samsung Galaxy A14 4G",
+  "Samsung Galaxy A04s",
+  "Samsung Galaxy A04",
+  "Samsung Galaxy A04e",
+  "Samsung Galaxy A72",
+  "Samsung Galaxy A53 5G",
+  "Samsung Galaxy A33 5G",
+  "Samsung Galaxy A23 5G",
+  "Samsung Galaxy A23 4G",
+  "Samsung Galaxy A13 5G",
+  "Samsung Galaxy A13 4G",
+  "Samsung Galaxy A03s",
+  "Samsung Galaxy A03",
+  "Samsung Galaxy A03 Core",
+  "Samsung Galaxy A52s 5G",
+  "Samsung Galaxy A52 5G",
+  "Samsung Galaxy A52 4G",
+  "Samsung Galaxy A32 5G",
+  "Samsung Galaxy A32 4G",
+  "Samsung Galaxy A22 5G",
+  "Samsung Galaxy A22 4G",
+  "Samsung Galaxy A12 Nacho",
+  "Samsung Galaxy A12",
+  "Samsung Galaxy A02s",
+  "Samsung Galaxy A02",
+  "Samsung Galaxy A71 5G",
+  "Samsung Galaxy A71",
+  "Samsung Galaxy A51 5G",
+  "Samsung Galaxy A51",
+  "Samsung Galaxy A42 5G",
+  "Samsung Galaxy A41",
+  "Samsung Galaxy A31",
+  "Samsung Galaxy A21s",
+  "Samsung Galaxy A21",
+  "Samsung Galaxy A11",
+  "Samsung Galaxy A01 Core",
+  "Samsung Galaxy A01",
+
+  // --- GALAXY M SERIES ---
+  "Samsung Galaxy M57 5G",
+  "Samsung Galaxy M37 5G",
+  "Samsung Galaxy M17 5G",
+  "Samsung Galaxy M56 5G",
+  "Samsung Galaxy M36 5G",
+  "Samsung Galaxy M26 5G",
+  "Samsung Galaxy M16 5G",
+  "Samsung Galaxy M55 5G",
+  "Samsung Galaxy M35 5G",
+  "Samsung Galaxy M15 5G",
   "Samsung Galaxy M54 5G",
   "Samsung Galaxy M34 5G",
-  "Samsung Galaxy Note 20 Ultra",
-  "Samsung Galaxy Note 20",
-  "Samsung Galaxy Z Fold 5",
-  "Samsung Galaxy Z Flip 5",
-  "Samsung Galaxy Z Fold 6",
-  "Samsung Galaxy Z Flip 6"
+  "Samsung Galaxy M14 5G",
+  "Samsung Galaxy M14 4G",
+  "Samsung Galaxy M53 5G",
+  "Samsung Galaxy M33 5G",
+  "Samsung Galaxy M23 5G",
+  "Samsung Galaxy M13 5G",
+  "Samsung Galaxy M62",
+  "Samsung Galaxy M52 5G",
+  "Samsung Galaxy M32 5G",
+  "Samsung Galaxy M32 4G",
+  "Samsung Galaxy M22",
+  "Samsung Galaxy M12",
+  "Samsung Galaxy M02s",
+  "Samsung Galaxy M02",
+  "Samsung Galaxy M51",
+  "Samsung Galaxy M31s",
+  "Samsung Galaxy M31",
+  "Samsung Galaxy M21s",
+  "Samsung Galaxy M21",
+  "Samsung Galaxy M11",
+  "Samsung Galaxy M01s",
+  "Samsung Galaxy M01",
+  "Samsung Galaxy M01 Core",
+
+  // --- GALAXY F SERIES ---
+  "Samsung Galaxy F54 5G",
+  "Samsung Galaxy F34 5G",
+  "Samsung Galaxy F14 5G",
+  "Samsung Galaxy F62",
+  "Samsung Galaxy F52 5G",
+  "Samsung Galaxy F42 5G",
+  "Samsung Galaxy F23 5G",
+  "Samsung Galaxy F22",
+  "Samsung Galaxy F12",
+  "Samsung Galaxy F02s",
+  "Samsung Galaxy F41"
 ];
 
 const PARTS_DB = [
@@ -57,6 +213,7 @@ const PARTS_DB = [
   "Gaveta de Chip SIM",
   "Conector FPC de Bateria / Tela",
   "CI de Carga / Regulador de Energia",
+  "Película",
   "Conjunto de Fitas"
 ];
 
@@ -96,13 +253,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   setupSettingsEventListeners();
   setupModals();
   updateDashboard();
-  
-  // Set default technician name on profile if exists
-  if (state.settings.defaultRequester) {
-    document.getElementById("display-user-name").textContent = state.settings.defaultRequester;
-  } else {
-    document.getElementById("display-user-name").textContent = "Técnico Convidado";
-  }
 
   // Initialize Lucide Icons
   lucide.createIcons();
@@ -310,6 +460,8 @@ function generateSummaryText(data) {
 Data/Hora: ${data.date}
 Cliente: ${data.requester}
 Aparelho: ${data.deviceModel}
+Modelo Específico: ${data.deviceModelCode || "Não informado"}
+IMEI: ${data.imei || "Não informado"}
 ${partsText}
 Urgência: ${data.urgency}
 ----------------------------------
@@ -341,16 +493,23 @@ function isBackCoverPart(partName) {
   return partName.toLowerCase().includes("tampa traseira");
 }
 
+function isTapeRequiredPart(partName) {
+  const name = partName.toLowerCase();
+  if (name === "conjunto de fitas") return false;
+  if (isBackCoverPart(partName)) return false;
+  if (name === "película" || name === "pelicula") return false;
+  return true;
+}
+
 // Automatically ensures companion parts are included when needed
 function ensureRelatedParts(parts) {
-  const hasOtherParts = parts.some(p => p.name.toLowerCase() !== "conjunto de fitas");
+  const hasTapeRequiredPart = parts.some(p => isTapeRequiredPart(p.name));
   const hasTapeSet = parts.some(p => p.name.toLowerCase() === "conjunto de fitas");
   const hasFrontCabinet = parts.some(p => p.name.toLowerCase() === "gabinete frontal");
   const hasBattery = parts.some(p => p.name.toLowerCase() === "bateria de fábrica");
   const frontCabinetQuantity = getPartQuantity(parts, "Gabinete Frontal");
-  const isOnlyBackCoverRequest = parts.length === 1 && isBackCoverPart(parts[0].name);
 
-  if (hasOtherParts && !hasTapeSet && !isOnlyBackCoverRequest) {
+  if (hasTapeRequiredPart && !hasTapeSet) {
     parts.push({
       name: "Conjunto de Fitas",
       quantity: 1
@@ -372,6 +531,8 @@ function ensureRelatedParts(parts) {
 function updateSummaryPreview() {
   const requester = document.getElementById("requester-name").value || "-";
   const deviceModel = document.getElementById("device-model").value || "-";
+  const deviceModelCode = document.getElementById("device-model-code").value || "-";
+  const imei = document.getElementById("device-imei").value || "-";
   
   const urgencyActive = document.querySelector('input[name="urgency"]:checked');
   const urgency = urgencyActive ? urgencyActive.value : "Baixa";
@@ -381,6 +542,8 @@ function updateSummaryPreview() {
   // Update HTML elements in the summary card
   document.getElementById("sum-requester").textContent = requester;
   document.getElementById("sum-device").textContent = deviceModel;
+  document.getElementById("sum-device-code").textContent = deviceModelCode;
+  document.getElementById("sum-imei").textContent = imei;
   document.getElementById("sum-urgency").textContent = urgency;
   
   const notesDisplay = document.getElementById("sum-notes");
@@ -580,6 +743,8 @@ function setupFormEventListeners() {
     
     const requester = document.getElementById("requester-name").value || "Cliente";
     const deviceModel = document.getElementById("device-model").value || "Não especificado";
+    const deviceModelCode = document.getElementById("device-model-code").value.trim() || "";
+    const imei = document.getElementById("device-imei").value.trim() || "";
     
     const urgencyActive = document.querySelector('input[name="urgency"]:checked');
     const urgency = urgencyActive ? urgencyActive.value : "Baixa";
@@ -609,6 +774,8 @@ function setupFormEventListeners() {
       date: dateStr,
       requester,
       deviceModel,
+      deviceModelCode,
+      imei,
       parts: copyParts,
       urgency,
       notes
@@ -642,17 +809,7 @@ function validateForm() {
     showToast("Modelo do dispositivo é obrigatório", "error");
     return false;
   }
-  
-  // Enforce Samsung brand
-  const deviceLower = deviceModel.toLowerCase();
-  const isSamsung = deviceLower.includes("samsung") || 
-                    deviceLower.includes("galaxy") || 
-                    DEVICEMODELS_DB.some(m => m.toLowerCase().includes(deviceLower));
 
-  if (!isSamsung) {
-    showToast("Apenas dispositivos da marca Samsung são aceitos.", "error");
-    return false;
-  }
 
   // Check if both list and inputs are empty
   if (formAddedParts.length === 0 && !partName) {
@@ -672,6 +829,8 @@ function validateForm() {
 async function saveRequestFromForm() {
   const requester = document.getElementById("requester-name").value.trim();
   const deviceModel = document.getElementById("device-model").value.trim();
+  const deviceModelCode = document.getElementById("device-model-code").value.trim();
+  const imei = document.getElementById("device-imei").value.trim();
   const currentPartName = document.getElementById("part-name").value.trim();
   const currentQuantity = parseInt(document.getElementById("part-quantity").value);
   
@@ -709,6 +868,8 @@ async function saveRequestFromForm() {
       createdAt: timestamp.toISOString(),
       requester,
       deviceModel,
+      deviceModelCode,
+      imei,
       partName: part.name,
       quantity: part.quantity,
       urgency,
@@ -740,6 +901,8 @@ async function saveRequestFromForm() {
   // Clear inputs (including Client Name)
   document.getElementById("requester-name").value = "";
   document.getElementById("device-model").value = "";
+  document.getElementById("device-model-code").value = "";
+  document.getElementById("device-imei").value = "";
   document.getElementById("part-name").value = "";
   document.getElementById("part-quantity").value = 1;
   document.getElementById("urgency-low").checked = true;
@@ -944,7 +1107,11 @@ function updateDashboard() {
 
         tr.innerHTML = `
           <td rowspan="${N}" class="table-date-cell">${dateFormatted}</td>
-          <td rowspan="${N}" class="table-device-cell">${group.deviceModel}</td>
+          <td rowspan="${N}" class="table-device-cell">
+            <div style="font-weight: 600;">${group.deviceModel}</div>
+            ${group.deviceModelCode ? `<div class="sub-detail" style="font-size: 11px; opacity: 0.85; margin-top: 2px;">Mód: ${escapeHtml(group.deviceModelCode)}</div>` : ""}
+            ${group.imei ? `<div class="sub-detail" style="font-size: 11px; opacity: 0.85;">IMEI: ${escapeHtml(group.imei)}</div>` : ""}
+          </td>
           <td class="table-part-cell">${req.partName}</td>
           <td class="table-qty-cell">${req.quantity}</td>
           <td rowspan="${N}" class="table-note-cell">${group.notes ? escapeHtml(group.notes.trim()) : '<span class="table-note-empty">Sem nota</span>'}</td>
@@ -1020,6 +1187,8 @@ function getFilteredRequests() {
     // Search filter
     const matchesSearch = 
       req.deviceModel.toLowerCase().includes(searchQuery) ||
+      (req.deviceModelCode && req.deviceModelCode.toLowerCase().includes(searchQuery)) ||
+      (req.imei && req.imei.toLowerCase().includes(searchQuery)) ||
       req.partName.toLowerCase().includes(searchQuery) ||
       req.requester.toLowerCase().includes(searchQuery) ||
       (req.notes && req.notes.toLowerCase().includes(searchQuery));
@@ -1099,6 +1268,8 @@ function groupRequests(requestsList) {
         createdAt: req.createdAt,
         requester: req.requester,
         deviceModel: req.deviceModel,
+        deviceModelCode: req.deviceModelCode || "",
+        imei: req.imei || "",
         urgency: req.urgency,
         notes: req.notes,
         items: []
@@ -1123,7 +1294,7 @@ function renderHistoryTable() {
   if (groups.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="8" class="text-center">
+        <td colspan="10" class="text-center">
           <div class="empty-state">
             <i data-lucide="filter"></i>
             <p>Nenhuma solicitação corresponde aos filtros aplicados.</p>
@@ -1164,7 +1335,11 @@ function renderHistoryTable() {
         tr.innerHTML = `
           <td rowspan="${N}">${dateFormatted}</td>
           <td rowspan="${N}">${group.requester}</td>
-          <td rowspan="${N}" style="font-weight: 600;">${group.deviceModel}</td>
+          <td rowspan="${N}">
+            <div style="font-weight: 600;">${group.deviceModel}</div>
+          </td>
+          <td rowspan="${N}">${group.deviceModelCode ? escapeHtml(group.deviceModelCode) : "-"}</td>
+          <td rowspan="${N}">${group.imei ? escapeHtml(group.imei) : "-"}</td>
           <td>${req.partName}</td>
           <td>${req.quantity}</td>
           <td rowspan="${N}">
@@ -1235,6 +1410,8 @@ function renderHistoryTable() {
             date: formattedDate,
             requester: group.requester,
             deviceModel: group.deviceModel,
+            deviceModelCode: group.deviceModelCode,
+            imei: group.imei,
             urgency: group.urgency,
             notes: group.notes,
             parts: parts
@@ -1329,6 +1506,8 @@ function openStatusModal(id) {
   
   document.getElementById("modal-req-summary").innerHTML = `
     <strong>Dispositivo:</strong> ${req.deviceModel} <br>
+    ${req.deviceModelCode ? `<strong>Modelo Específico:</strong> ${req.deviceModelCode} <br>` : ""}
+    ${req.imei ? `<strong>IMEI:</strong> ${req.imei} <br>` : ""}
     <strong>Peça:</strong> ${req.partName} (Qtd: ${req.quantity}) <br>
     <strong>Cliente:</strong> ${req.requester} em ${createdDate} <br>
     <strong>Status Atual:</strong> ${req.status}
@@ -1469,39 +1648,6 @@ async function saveBulkStatusChange() {
 
 // Settings Panel Logic
 function setupSettingsEventListeners() {
-  const settingsForm = document.getElementById("settings-form");
-  const nameInp = document.getElementById("setting-default-requester");
-
-  // Pre-fill fields
-  if (state.settings.defaultRequester) {
-    nameInp.value = state.settings.defaultRequester;
-  }
-
-  // Save Settings
-  settingsForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    
-    state.settings.defaultRequester = nameInp.value.trim();
-    try {
-      const result = await api.saveSettings(state.settings);
-      state.settings = { ...state.settings, ...(result.settings ?? {}) };
-      localStorage.removeItem("partsync_settings");
-    } catch (error) {
-      console.error(error);
-      showToast("Erro ao salvar preferÃªncias no banco SQLite.", "error");
-      return;
-    }
-    
-    if (state.settings.defaultRequester) {
-      document.getElementById("display-user-name").textContent = state.settings.defaultRequester;
-    } else {
-      document.getElementById("display-user-name").textContent = "Técnico Convidado";
-    }
-
-    showToast("Preferências salvas com sucesso!");
-    updateSummaryPreview();
-  });
-
   // Backup: Export CSV
   document.getElementById("btn-export-data").addEventListener("click", () => {
     downloadCSV(state.requests, "partsync_solicitacoes_backup");
@@ -1509,7 +1655,7 @@ function setupSettingsEventListeners() {
 
   // Redefine / Clear App
   document.getElementById("btn-reset-app").addEventListener("click", async () => {
-    if (confirm("ATENÇÃO: Isso irá APAGAR TODO o seu histórico e preferências do PartSync permanentemente. Continuar?")) {
+    if (confirm("ATENÇÃO: Isso irá APAGAR TODO o seu histórico do PartSync permanentemente. Continuar?")) {
       if (confirm("Confirmação final: Deseja mesmo deletar todos os dados?")) {
         try {
           await api.resetData();
@@ -1526,9 +1672,7 @@ function setupSettingsEventListeners() {
           defaultRequester: ""
         };
         
-        nameInp.value = "";
         document.getElementById("requester-name").value = "";
-        document.getElementById("display-user-name").textContent = "Técnico Convidado";
         
         updateDashboard();
         renderHistoryTable();
@@ -1551,7 +1695,7 @@ function downloadCSV(requests, filenamePrefix = "partsync_solicitacoes") {
   }
 
   // CSV Headers
-  const headers = ["ID", "Data/Hora", "Cliente", "Aparelho", "Peça", "Quantidade", "Urgência", "Status", "Observações"];
+  const headers = ["ID", "Data/Hora", "Cliente", "Aparelho", "Modelo Específico", "IMEI", "Peça", "Quantidade", "Urgência", "Status", "Observações"];
   
   // Convert to CSV lines
   const csvRows = [];
@@ -1568,6 +1712,8 @@ function downloadCSV(requests, filenamePrefix = "partsync_solicitacoes") {
       dateFormatted,
       req.requester,
       req.deviceModel,
+      req.deviceModelCode || "",
+      req.imei || "",
       req.partName,
       req.quantity,
       req.urgency,

@@ -28,6 +28,8 @@ export async function createDatabase() {
       created_at TEXT NOT NULL,
       requester TEXT NOT NULL,
       device_model TEXT NOT NULL,
+      device_model_code TEXT NOT NULL DEFAULT '',
+      imei TEXT NOT NULL DEFAULT '',
       part_name TEXT NOT NULL,
       quantity INTEGER NOT NULL CHECK (quantity > 0),
       urgency TEXT NOT NULL,
@@ -60,6 +62,18 @@ export async function createDatabase() {
     // Column might already exist
   }
 
+  try {
+    db.exec("ALTER TABLE requests ADD COLUMN device_model_code TEXT NOT NULL DEFAULT '';");
+  } catch (e) {
+    // Column might already exist
+  }
+
+  try {
+    db.exec("ALTER TABLE requests ADD COLUMN imei TEXT NOT NULL DEFAULT '';");
+  } catch (e) {
+    // Column might already exist
+  }
+
   return new PartsDatabase(db, dbPath);
 }
 
@@ -70,9 +84,9 @@ class PartsDatabase {
 
     this.insertRequest = db.prepare(`
       INSERT INTO requests (
-        id, created_at, requester, device_model, part_name,
+        id, created_at, requester, device_model, device_model_code, imei, part_name,
         quantity, urgency, notes, status, order_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     this.insertLog = db.prepare(`
@@ -88,6 +102,8 @@ class PartsDatabase {
         created_at AS createdAt,
         requester,
         device_model AS deviceModel,
+        device_model_code AS deviceModelCode,
+        imei,
         part_name AS partName,
         quantity,
         urgency,
@@ -138,6 +154,8 @@ class PartsDatabase {
           request.createdAt,
           request.requester,
           request.deviceModel,
+          request.deviceModelCode || "",
+          request.imei || "",
           request.partName,
           request.quantity,
           request.urgency,
@@ -225,6 +243,8 @@ function normalizeRequest(request) {
     createdAt: requiredString(request.createdAt, "createdAt"),
     requester: requiredString(request.requester, "requester"),
     deviceModel: requiredString(request.deviceModel, "deviceModel"),
+    deviceModelCode: optionalString(request.deviceModelCode),
+    imei: optionalString(request.imei),
     partName: requiredString(request.partName, "partName"),
     quantity: Number(request.quantity),
     urgency: requiredString(request.urgency, "urgency"),

@@ -48,12 +48,6 @@ Certifique-se de possuir o [Node.js](https://nodejs.org/) instalado em seu compu
 
 ---
 
-## 📝 Como Configurar para Uso Diário
-
-1. Ao abrir o aplicativo pela primeira vez, vá até a aba **Ajustes** (ou **Configurações**).
-2. Defina o seu **Nome do Técnico Padrão** para evitar ter que digitar seu nome a cada novo pedido.
-3. Clique em **Salvar Preferências**.
-4. Pronto! O PartSync estará configurado e pronto para uso no seu dispositivo.
 ---
 
 ## Banco SQLite

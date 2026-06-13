@@ -46,16 +46,6 @@
           <span>Configurações</span>
         </a>
       </nav>
-
-      <div class="user-profile">
-        <div class="avatar">
-          <i data-lucide="user"></i>
-        </div>
-        <div class="user-info">
-          <span class="user-name" id="display-user-name">Carregando...</span>
-          <span class="user-role">Técnico</span>
-        </div>
-      </div>
     </aside>
 
     <!-- Mobile Top Header -->
@@ -221,13 +211,31 @@
                   </div>
                 </div>
 
-                <!-- Device Model -->
+                 <!-- Device Model -->
                 <div class="form-group col-full">
                   <label for="device-model">Modelo do Dispositivo Samsung <span class="required">*</span></label>
                   <div class="input-with-icon autocomplete">
                     <i data-lucide="smartphone"></i>
-                    <input type="text" id="device-model" required placeholder="Ex: Galaxy S24 Ultra, Galaxy A55" aria-autocomplete="list" aria-controls="device-autocomplete-list" aria-expanded="false">
+                    <input type="text" id="device-model" required placeholder="Ex: Galaxy S25 Ultra, Galaxy Z Fold 6, Galaxy A55" aria-autocomplete="list" aria-controls="device-autocomplete-list" aria-expanded="false">
                     <div id="device-autocomplete-list" class="autocomplete-items" role="listbox" aria-label="Sugestões de modelos Samsung" aria-hidden="true"></div>
+                  </div>
+                </div>
+
+                <!-- Specific Model Code -->
+                <div class="form-group col-half">
+                  <label for="device-model-code">Código do Modelo (ex: SM-S938BAKKZTO)</label>
+                  <div class="input-with-icon">
+                    <i data-lucide="barcode"></i>
+                    <input type="text" id="device-model-code" placeholder="Ex: SM-S938BAKKZTO">
+                  </div>
+                </div>
+
+                <!-- IMEI -->
+                <div class="form-group col-half">
+                  <label for="device-imei">IMEI</label>
+                  <div class="input-with-icon">
+                    <i data-lucide="hash"></i>
+                    <input type="text" id="device-imei" placeholder="Ex: 351234567890123" maxlength="15">
                   </div>
                 </div>
 
@@ -347,6 +355,16 @@
                     <span class="field-val text-white" id="sum-device" style="font-weight:600;">-</span>
                   </div>
 
+                  <div class="paper-field">
+                    <span class="field-label">Modelo Específico:</span>
+                    <span class="field-val text-white" id="sum-device-code" style="font-weight:600;">-</span>
+                  </div>
+
+                  <div class="paper-field">
+                    <span class="field-label">IMEI:</span>
+                    <span class="field-val text-white" id="sum-imei" style="font-weight:600;">-</span>
+                  </div>
+
                   <div class="paper-field-block" id="sum-parts-block" style="margin-bottom: 12px;">
                     <span class="field-label">Peças:</span>
                     <div id="sum-parts-list" style="margin-top: 6px;">
@@ -423,7 +441,7 @@
           <div class="filter-layout">
             <div class="search-bar">
               <i data-lucide="search"></i>
-              <input type="text" id="search-history" placeholder="Buscar por modelo, peça, técnico...">
+              <input type="text" id="search-history" placeholder="Buscar por modelo, IMEI, peça, técnico...">
             </div>
             
             <div class="filter-selectors">
@@ -464,6 +482,8 @@
                   <th>Data/Hora</th>
                   <th>Cliente</th>
                   <th>Aparelho</th>
+                  <th>Modelo</th>
+                  <th>IMEI</th>
                   <th>Peça</th>
                   <th>Qtd</th>
                   <th>Urgência</th>
@@ -484,37 +504,12 @@
         <header class="section-header">
           <div>
             <h2>Configurações do Sistema</h2>
-            <p>Defina suas preferências locais e realize backups de segurança.</p>
+            <p>Realize backups de segurança e gerencie a persistência dos dados.</p>
           </div>
         </header>
 
         <div class="settings-grid">
           
-          <!-- General Settings -->
-          <div class="details-card settings-card">
-            <div class="card-header">
-              <h3><i data-lucide="sliders"></i> Preferências de Usuário</h3>
-            </div>
-            <div class="card-body">
-              <form id="settings-form">
-                
-                <div class="form-group">
-                  <label for="setting-default-requester">Nome do Técnico Padrão</label>
-                  <div class="input-with-icon">
-                    <i data-lucide="user"></i>
-                    <input type="text" id="setting-default-requester" placeholder="Ex: Lucas Assistência">
-                  </div>
-                  <span class="input-tip">Nome do técnico exibido no menu lateral do sistema.</span>
-                </div>
-
-                <button type="submit" class="btn btn-primary" style="margin-top: 15px;">
-                  <i data-lucide="save"></i> Salvar Preferências
-                </button>
-
-              </form>
-            </div>
-          </div>
-
           <!-- Backup & Data Management -->
           <div class="details-card settings-card">
             <div class="card-header">
