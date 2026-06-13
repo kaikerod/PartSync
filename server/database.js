@@ -1,12 +1,29 @@
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
-import { DatabaseSync } from "node:sqlite";
 
 const DEFAULT_SETTINGS = {
   defaultRequester: ""
 };
 
 export async function createDatabase() {
+  const connectionString =
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL ||
+    process.env.POSTGRES_PRISMA_URL;
+
+  if (connectionString) {
+    return createPostgresDatabase(connectionString);
+  }
+
+  if (process.env.VERCEL) {
+    throw new Error("DATABASE_URL precisa estar configurado na Vercel.");
+  }
+
+  return createSqliteDatabase();
+}
+
+async function createSqliteDatabase() {
+  const { DatabaseSync } = await import("node:sqlite");
   const dbPath = process.env.PARTSYNC_DB_PATH
     ? path.resolve(process.env.PARTSYNC_DB_PATH)
     : path.join(
@@ -56,30 +73,25 @@ export async function createDatabase() {
       ON request_logs(request_id);
   `);
 
-  try {
-    db.exec("ALTER TABLE requests ADD COLUMN order_id TEXT;");
-  } catch (e) {
-    // Column might already exist
-  }
+  addSqliteColumn(db, "ALTER TABLE requests ADD COLUMN order_id TEXT;");
+  addSqliteColumn(db, "ALTER TABLE requests ADD COLUMN device_model_code TEXT NOT NULL DEFAULT '';");
+  addSqliteColumn(db, "ALTER TABLE requests ADD COLUMN imei TEXT NOT NULL DEFAULT '';");
 
-  try {
-    db.exec("ALTER TABLE requests ADD COLUMN device_model_code TEXT NOT NULL DEFAULT '';");
-  } catch (e) {
-    // Column might already exist
-  }
-
-  try {
-    db.exec("ALTER TABLE requests ADD COLUMN imei TEXT NOT NULL DEFAULT '';");
-  } catch (e) {
-    // Column might already exist
-  }
-
-  return new PartsDatabase(db, dbPath);
+  return new SqlitePartsDatabase(db, dbPath);
 }
 
-class PartsDatabase {
+async function createPostgresDatabase(connectionString) {
+  const { neon } = await import("@neondatabase/serverless");
+  const sql = neon(connectionString);
+  const database = new PostgresPartsDatabase(sql);
+  await database.initialize();
+  return database;
+}
+
+class SqlitePartsDatabase {
   constructor(db, dbPath) {
     this.db = db;
+    this.kind = "sqlite";
     this.path = dbPath;
 
     this.insertRequest = db.prepare(`
@@ -95,7 +107,7 @@ class PartsDatabase {
     `);
   }
 
-  getRequests() {
+  async getRequests() {
     const rows = this.db.prepare(`
       SELECT
         id,
@@ -120,42 +132,24 @@ class PartsDatabase {
       ORDER BY id ASC
     `).all();
 
-    const logsByRequest = new Map();
-    for (const log of logRows) {
-      if (!logsByRequest.has(log.requestId)) {
-        logsByRequest.set(log.requestId, []);
-      }
-      logsByRequest.get(log.requestId).push({
-        timestamp: log.timestamp,
-        status: log.status,
-        notes: log.notes
-      });
-    }
-
-    return rows.map((request) => ({
-      ...request,
-      logs: logsByRequest.get(request.id) ?? []
-    }));
+    return hydrateRequests(rows, logRows);
   }
 
-  replaceRequests(requests) {
-    if (!Array.isArray(requests)) {
-      throw badRequest("Campo requests precisa ser array.");
-    }
+  async replaceRequests(requests) {
+    const normalizedRequests = normalizeRequests(requests);
 
     this.runInTransaction(() => {
       this.db.exec("DELETE FROM request_logs");
       this.db.exec("DELETE FROM requests");
 
-      for (const rawRequest of requests) {
-        const request = normalizeRequest(rawRequest);
+      for (const request of normalizedRequests) {
         this.insertRequest.run(
           request.id,
           request.createdAt,
           request.requester,
           request.deviceModel,
-          request.deviceModelCode || "",
-          request.imei || "",
+          request.deviceModelCode,
+          request.imei,
           request.partName,
           request.quantity,
           request.urgency,
@@ -164,8 +158,7 @@ class PartsDatabase {
           request.orderId || null
         );
 
-        for (const rawLog of request.logs) {
-          const log = normalizeLog(rawLog, request.status, request.createdAt);
+        for (const log of request.logs) {
           this.insertLog.run(request.id, log.timestamp, log.status, log.notes);
         }
       }
@@ -174,22 +167,12 @@ class PartsDatabase {
     return this.getRequests();
   }
 
-  getSettings() {
+  async getSettings() {
     const rows = this.db.prepare("SELECT key, value FROM settings").all();
-    const settings = { ...DEFAULT_SETTINGS };
-
-    for (const row of rows) {
-      try {
-        settings[row.key] = JSON.parse(row.value);
-      } catch {
-        settings[row.key] = row.value;
-      }
-    }
-
-    return settings;
+    return hydrateSettings(rows);
   }
 
-  saveSettings(settings) {
+  async saveSettings(settings) {
     const nextSettings = { ...DEFAULT_SETTINGS, ...settings };
 
     this.runInTransaction(() => {
@@ -207,7 +190,7 @@ class PartsDatabase {
     return this.getSettings();
   }
 
-  reset() {
+  async reset() {
     this.runInTransaction(() => {
       this.db.exec("DELETE FROM request_logs");
       this.db.exec("DELETE FROM requests");
@@ -215,8 +198,8 @@ class PartsDatabase {
     });
 
     return {
-      requests: this.getRequests(),
-      settings: this.getSettings()
+      requests: await this.getRequests(),
+      settings: await this.getSettings()
     };
   }
 
@@ -235,6 +218,197 @@ class PartsDatabase {
   close() {
     this.db.close();
   }
+}
+
+class PostgresPartsDatabase {
+  constructor(sql) {
+    this.sql = sql;
+    this.kind = "postgres";
+    this.path = "neon-postgres";
+  }
+
+  async initialize() {
+    await this.sql`
+      CREATE TABLE IF NOT EXISTS requests (
+        id TEXT PRIMARY KEY,
+        created_at TEXT NOT NULL,
+        requester TEXT NOT NULL,
+        device_model TEXT NOT NULL,
+        device_model_code TEXT NOT NULL DEFAULT '',
+        imei TEXT NOT NULL DEFAULT '',
+        part_name TEXT NOT NULL,
+        quantity INTEGER NOT NULL CHECK (quantity > 0),
+        urgency TEXT NOT NULL,
+        notes TEXT NOT NULL DEFAULT '',
+        status TEXT NOT NULL,
+        order_id TEXT
+      )
+    `;
+
+    await this.sql`
+      CREATE TABLE IF NOT EXISTS request_logs (
+        id BIGSERIAL PRIMARY KEY,
+        request_id TEXT NOT NULL REFERENCES requests(id) ON DELETE CASCADE,
+        timestamp TEXT NOT NULL,
+        status TEXT NOT NULL,
+        notes TEXT NOT NULL DEFAULT ''
+      )
+    `;
+
+    await this.sql`
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      )
+    `;
+
+    await this.sql`
+      CREATE INDEX IF NOT EXISTS idx_request_logs_request_id
+      ON request_logs(request_id)
+    `;
+
+    await this.sql`ALTER TABLE requests ADD COLUMN IF NOT EXISTS order_id TEXT`;
+    await this.sql`ALTER TABLE requests ADD COLUMN IF NOT EXISTS device_model_code TEXT NOT NULL DEFAULT ''`;
+    await this.sql`ALTER TABLE requests ADD COLUMN IF NOT EXISTS imei TEXT NOT NULL DEFAULT ''`;
+  }
+
+  async getRequests() {
+    const rows = await this.sql`
+      SELECT
+        id,
+        created_at AS "createdAt",
+        requester,
+        device_model AS "deviceModel",
+        device_model_code AS "deviceModelCode",
+        imei,
+        part_name AS "partName",
+        quantity,
+        urgency,
+        notes,
+        status,
+        order_id AS "orderId"
+      FROM requests
+      ORDER BY created_at DESC
+    `;
+
+    const logRows = await this.sql`
+      SELECT request_id AS "requestId", timestamp, status, notes
+      FROM request_logs
+      ORDER BY id ASC
+    `;
+
+    return hydrateRequests(rows, logRows);
+  }
+
+  async replaceRequests(requests) {
+    const normalizedRequests = normalizeRequests(requests);
+    const statements = [
+      this.sql`DELETE FROM request_logs`,
+      this.sql`DELETE FROM requests`
+    ];
+
+    for (const request of normalizedRequests) {
+      statements.push(this.sql`
+        INSERT INTO requests (
+          id, created_at, requester, device_model, device_model_code, imei, part_name,
+          quantity, urgency, notes, status, order_id
+        ) VALUES (
+          ${request.id}, ${request.createdAt}, ${request.requester},
+          ${request.deviceModel}, ${request.deviceModelCode}, ${request.imei},
+          ${request.partName}, ${request.quantity}, ${request.urgency},
+          ${request.notes}, ${request.status}, ${request.orderId || null}
+        )
+      `);
+
+      for (const log of request.logs) {
+        statements.push(this.sql`
+          INSERT INTO request_logs (request_id, timestamp, status, notes)
+          VALUES (${request.id}, ${log.timestamp}, ${log.status}, ${log.notes})
+        `);
+      }
+    }
+
+    await this.sql.transaction(statements);
+    return this.getRequests();
+  }
+
+  async getSettings() {
+    const rows = await this.sql`SELECT key, value FROM settings`;
+    return hydrateSettings(rows);
+  }
+
+  async saveSettings(settings) {
+    const nextSettings = { ...DEFAULT_SETTINGS, ...settings };
+    const statements = [this.sql`DELETE FROM settings`];
+
+    for (const [key, value] of Object.entries(nextSettings)) {
+      statements.push(this.sql`
+        INSERT INTO settings (key, value)
+        VALUES (${key}, ${JSON.stringify(value ?? "")})
+      `);
+    }
+
+    await this.sql.transaction(statements);
+    return this.getSettings();
+  }
+
+  async reset() {
+    await this.sql.transaction([
+      this.sql`DELETE FROM request_logs`,
+      this.sql`DELETE FROM requests`,
+      this.sql`DELETE FROM settings`
+    ]);
+
+    return {
+      requests: await this.getRequests(),
+      settings: await this.getSettings()
+    };
+  }
+
+  close() {}
+}
+
+function hydrateRequests(rows, logRows) {
+  const logsByRequest = new Map();
+
+  for (const log of logRows) {
+    if (!logsByRequest.has(log.requestId)) {
+      logsByRequest.set(log.requestId, []);
+    }
+
+    logsByRequest.get(log.requestId).push({
+      timestamp: log.timestamp,
+      status: log.status,
+      notes: log.notes
+    });
+  }
+
+  return rows.map((request) => ({
+    ...request,
+    logs: logsByRequest.get(request.id) ?? []
+  }));
+}
+
+function hydrateSettings(rows) {
+  const settings = { ...DEFAULT_SETTINGS };
+
+  for (const row of rows) {
+    try {
+      settings[row.key] = JSON.parse(row.value);
+    } catch {
+      settings[row.key] = row.value;
+    }
+  }
+
+  return settings;
+}
+
+function normalizeRequests(requests) {
+  if (!Array.isArray(requests)) {
+    throw badRequest("Campo requests precisa ser array.");
+  }
+
+  return requests.map(normalizeRequest);
 }
 
 function normalizeRequest(request) {
@@ -264,6 +438,10 @@ function normalizeRequest(request) {
       status: normalized.status,
       notes: "Solicitação registrada no sistema"
     });
+  } else {
+    normalized.logs = normalized.logs.map((log) =>
+      normalizeLog(log, normalized.status, normalized.createdAt)
+    );
   }
 
   return normalized;
@@ -288,6 +466,14 @@ function requiredString(value, fieldName) {
 function optionalString(value) {
   if (value === undefined || value === null) return "";
   return String(value).trim();
+}
+
+function addSqliteColumn(db, statement) {
+  try {
+    db.exec(statement);
+  } catch {
+    // Column might already exist.
+  }
 }
 
 function badRequest(message) {

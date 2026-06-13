@@ -3,6 +3,9 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "node --no-warnings --experimental-sqlite server.js",
     "build": "vite build",
@@ -11,5 +14,8 @@
   },
   "devDependencies": {
     "vite": "^5.2.11"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.1.0"
   }
 }

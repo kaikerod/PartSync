@@ -235,3 +235,5 @@ data/*.sqlite
 data/*.sqlite-*
 data/*.db
 
+.vercel
+.env*.local

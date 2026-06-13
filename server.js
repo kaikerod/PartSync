@@ -3,7 +3,7 @@ import { stat } from "node:fs/promises";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createDatabase } from "./server/database.js";
+import { closeDatabase, handleNodeApi, httpError, sendJson, toErrorResponse } from "./server/api.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = __dirname;
@@ -11,7 +11,6 @@ const distDir = path.join(projectRoot, "dist");
 const requestedPort = Number(process.env.PORT || 5173);
 const isProduction = process.argv.includes("--prod") || process.env.NODE_ENV === "production";
 
-const database = await createDatabase();
 const vite = isProduction
   ? null
   : await import("vite").then(({ createServer }) =>
@@ -44,9 +43,8 @@ const server = http.createServer(async (req, res) => {
 
     await serveStaticFile(url.pathname, res);
   } catch (error) {
-    sendJson(res, error.statusCode || 500, {
-      error: error.statusCode ? error.message : "Erro interno do servidor."
-    });
+    const result = toErrorResponse(error);
+    sendJson(res, result.statusCode, result.payload);
   }
 });
 
@@ -54,99 +52,14 @@ listen(requestedPort);
 
 for (const signal of ["SIGINT", "SIGTERM"]) {
   process.on(signal, async () => {
-    database.close();
+    await closeDatabase();
     if (vite) await vite.close();
     server.close(() => process.exit(0));
   });
 }
 
 async function handleApi(req, res, url) {
-  if (req.method === "OPTIONS") {
-    res.writeHead(204);
-    res.end();
-    return;
-  }
-
-  if (req.method === "GET" && url.pathname === "/api/health") {
-    sendJson(res, 200, { ok: true, database: database.path });
-    return;
-  }
-
-  if (req.method === "GET" && url.pathname === "/api/requests") {
-    sendJson(res, 200, database.getRequests());
-    return;
-  }
-
-  if (req.method === "PUT" && url.pathname === "/api/requests") {
-    const body = await readJson(req);
-    const requests = database.replaceRequests(body.requests);
-    sendJson(res, 200, { requests });
-    return;
-  }
-
-  if (req.method === "GET" && url.pathname === "/api/settings") {
-    sendJson(res, 200, database.getSettings());
-    return;
-  }
-
-  if (req.method === "PUT" && url.pathname === "/api/settings") {
-    const body = await readJson(req);
-    const settings = database.saveSettings(body.settings ?? body);
-    sendJson(res, 200, { settings });
-    return;
-  }
-
-  if (req.method === "POST" && url.pathname === "/api/migrate") {
-    const body = await readJson(req);
-    const currentRequests = database.getRequests();
-
-    if (currentRequests.length === 0 && Array.isArray(body.requests) && body.requests.length > 0) {
-      database.replaceRequests(body.requests);
-    }
-
-    if (body.settings && typeof body.settings === "object") {
-      database.saveSettings(body.settings);
-    }
-
-    sendJson(res, 200, {
-      requests: database.getRequests(),
-      settings: database.getSettings()
-    });
-    return;
-  }
-
-  if (req.method === "DELETE" && url.pathname === "/api/data") {
-    sendJson(res, 200, database.reset());
-    return;
-  }
-
-  throw httpError(404, "Rota API não encontrada.");
-}
-
-async function readJson(req) {
-  let body = "";
-
-  for await (const chunk of req) {
-    body += chunk;
-    if (body.length > 1_000_000) {
-      throw httpError(413, "JSON maior que limite de 1 MB.");
-    }
-  }
-
-  if (!body) return {};
-
-  try {
-    return JSON.parse(body);
-  } catch {
-    throw httpError(400, "JSON inválido.");
-  }
-}
-
-function sendJson(res, statusCode, payload) {
-  res.writeHead(statusCode, {
-    "Content-Type": "application/json; charset=utf-8"
-  });
-  res.end(JSON.stringify(payload));
+  await handleNodeApi(req, res, url.pathname);
 }
 
 async function serveStaticFile(pathname, res) {
@@ -190,12 +103,6 @@ function contentType(filePath) {
   return types[ext] ?? "application/octet-stream";
 }
 
-function httpError(statusCode, message) {
-  const error = new Error(message);
-  error.statusCode = statusCode;
-  return error;
-}
-
 function listen(port) {
   server.once("error", (error) => {
     const canTryNextPort =
@@ -214,7 +121,6 @@ function listen(port) {
   server.listen(port, () => {
     if (!process.env.PARTSYNC_SILENT) {
       console.log(`PartSync em http://localhost:${port}`);
-      console.log(`SQLite em ${database.path}`);
     }
   });
 }
