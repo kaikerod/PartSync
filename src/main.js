@@ -328,6 +328,10 @@ function getPartQuantity(parts, partName) {
     .reduce((sum, part) => sum + (parseInt(part.quantity) || 0), 0);
 }
 
+function isBackCoverPart(partName) {
+  return partName.toLowerCase().includes("tampa traseira");
+}
+
 // Automatically ensures companion parts are included when needed
 function ensureRelatedParts(parts) {
   const hasOtherParts = parts.some(p => p.name.toLowerCase() !== "conjunto de fitas");
@@ -335,8 +339,9 @@ function ensureRelatedParts(parts) {
   const hasFrontCabinet = parts.some(p => p.name.toLowerCase() === "gabinete frontal");
   const hasBattery = parts.some(p => p.name.toLowerCase() === "bateria de fábrica");
   const frontCabinetQuantity = getPartQuantity(parts, "Gabinete Frontal");
+  const isOnlyBackCoverRequest = parts.length === 1 && isBackCoverPart(parts[0].name);
 
-  if (hasOtherParts && !hasTapeSet) {
+  if (hasOtherParts && !hasTapeSet && !isOnlyBackCoverRequest) {
     parts.push({
       name: "Conjunto de Fitas",
       quantity: 1
