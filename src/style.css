@@ -1662,6 +1662,11 @@ body {
     gap: 16px;
   }
 
+  .part-add-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
   .form-group.col-full, 
   .form-group.col-half {
     grid-column: span 1;
@@ -1715,4 +1720,114 @@ body {
   .modal-body {
     overflow-y: auto;
   }
+}
+
+/* Part Multi-Selection styling */
+.part-add-section {
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.part-add-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr auto;
+  gap: 16px;
+  align-items: flex-end;
+}
+
+.btn-add-group {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.btn-add-group button {
+  height: 46px; /* Match input height */
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.added-parts-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.added-parts-container label {
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--text-secondary);
+}
+
+.added-part-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  margin-top: 8px;
+  transition: all var(--transition-fast);
+}
+
+.added-part-item:hover {
+  border-color: rgba(99, 102, 241, 0.3);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.added-part-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.added-part-name {
+  font-weight: 550;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.added-part-qty {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--primary);
+}
+
+.btn-remove-part {
+  background: transparent;
+  border: none;
+  color: var(--status-cancelled);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-remove-part:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.empty-parts-message {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 20px;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.01);
 }

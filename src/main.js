@@ -40,23 +40,23 @@ const DEVICEMODELS_DB = [
 ];
 
 const PARTS_DB = [
-  "Tela Frontal Dynamic AMOLED (Original)",
-  "Tela Frontal Super AMOLED (Original)",
-  "Bateria Original de Fábrica",
-  "Conector de Carga / Flex Principal (Original)",
-  "Sub-Placa de Conector de Carga (Original)",
-  "Tampa Traseira de Vidro (Original)",
-  "Câmera Traseira Principal (Original)",
-  "Câmera Frontal (Original)",
-  "Flex de Botão Power e Biometria (Original)",
-  "Flex de Botões de Volume (Original)",
-  "Alto-Falante Auricular (Original)",
-  "Alto-Falante Campainha (Original)",
-  "Lente de Vidro da Câmera (Original)",
-  "Aro Lateral / Chassi (Original)",
-  "Gaveta de Chip SIM (Original)",
-  "Conector FPC de Bateria / Tela (Original)",
-  "CI de Carga / Regulador de Energia (Original)"
+  "Tela Frontal Super AMOLED",
+  "Bateria de Fábrica",
+  "Flex Principal",
+  "Sub-Placa de Conector de Carga",
+  "Tampa Traseira de Vidro",
+  "Câmera Traseira Principal",
+  "Câmera Frontal",
+  "Flex de Botão Power e Biometria",
+  "Flex de Botões de Volume",
+  "Alto-Falante Auricular",
+  "Alto-Falante Campainha",
+  "Lente de Vidro da Câmera",
+  "Aro Lateral / Chassi",
+  "Gaveta de Chip SIM",
+  "Conector FPC de Bateria / Tela",
+  "CI de Carga / Regulador de Energia",
+  "Conjunto de Fitas"
 ];
 
 // App State
@@ -66,6 +66,9 @@ let state = {
     defaultRequester: ""
   }
 };
+
+// Temporarily holds parts added to the current form request
+let formAddedParts = [];
 
 // Initialize Application
 document.addEventListener("DOMContentLoaded", async () => {
@@ -284,13 +287,21 @@ function showToast(message, type = "success") {
 
 // Format the request into a clean text snippet for clipboard copy
 function generateSummaryText(data) {
+  let partsText = "";
+  if (Array.isArray(data.parts) && data.parts.length > 0) {
+    partsText = data.parts.map(p => `- Peça: ${p.name} (${p.quantity}x)`).join("\n");
+  } else if (data.partName) {
+    partsText = `- Peça: ${data.partName} (${data.quantity}x)`;
+  } else {
+    partsText = "- Peça: Não especificada";
+  }
+
   return `FICHA DE SOLICITAÇÃO - PARTSYNC
 ----------------------------------
 Data/Hora: ${data.date}
 Solicitante: ${data.requester}
 Aparelho: ${data.deviceModel}
-Peça: ${data.partName}
-Quantidade: ${data.quantity}x
+${partsText}
 Urgência: ${data.urgency}
 ----------------------------------
 Observações: ${data.notes || "Nenhuma."}`;
@@ -300,8 +311,6 @@ Observações: ${data.notes || "Nenhuma."}`;
 function updateSummaryPreview() {
   const requester = document.getElementById("requester-name").value || "-";
   const deviceModel = document.getElementById("device-model").value || "-";
-  const partName = document.getElementById("part-name").value || "-";
-  const quantity = document.getElementById("part-quantity").value || "1";
   
   const urgencyActive = document.querySelector('input[name="urgency"]:checked');
   const urgency = urgencyActive ? urgencyActive.value : "Baixa";
@@ -311,14 +320,138 @@ function updateSummaryPreview() {
   // Update HTML elements in the summary card
   document.getElementById("sum-requester").textContent = requester;
   document.getElementById("sum-device").textContent = deviceModel;
-  document.getElementById("sum-part").textContent = partName;
-  document.getElementById("sum-quantity").textContent = quantity + "x";
   document.getElementById("sum-urgency").textContent = urgency;
   
   const notesDisplay = document.getElementById("sum-notes");
   if (notesDisplay) {
     notesDisplay.textContent = notes ? notes : "Nenhuma observação informada.";
   }
+
+  const sumPartsList = document.getElementById("sum-parts-list");
+  if (sumPartsList) {
+    sumPartsList.innerHTML = "";
+    
+    // Combine both formAddedParts and any typed input in #part-name (if not empty)
+    const previewParts = [...formAddedParts];
+    const currentPartName = document.getElementById("part-name").value.trim();
+    const currentQuantity = parseInt(document.getElementById("part-quantity").value) || 1;
+    
+    if (currentPartName) {
+      const existingIdx = previewParts.findIndex(p => p.name.toLowerCase() === currentPartName.toLowerCase());
+      if (existingIdx !== -1) {
+        previewParts[existingIdx].quantity += currentQuantity;
+      } else {
+        previewParts.push({
+          name: currentPartName,
+          quantity: currentQuantity
+        });
+      }
+    }
+    
+    if (previewParts.length === 0) {
+      sumPartsList.innerHTML = `
+        <div class="paper-field" style="margin-bottom: 0;">
+          <span class="field-label">-</span>
+          <span class="field-val">-</span>
+        </div>
+      `;
+    } else {
+      previewParts.forEach(part => {
+        const row = document.createElement("div");
+        row.className = "paper-field";
+        row.style.marginBottom = "6px";
+        row.innerHTML = `
+          <span class="field-val text-white" style="font-weight:600; text-align: left;">${part.name}</span>
+          <span class="field-val text-white" style="font-weight:600; margin-left: 10px; white-space: nowrap;">${part.quantity}x</span>
+        `;
+        sumPartsList.appendChild(row);
+      });
+    }
+  }
+}
+
+// Add a part to the temporary form selection list
+function addPartToList() {
+  const partNameInput = document.getElementById("part-name");
+  const partQuantityInput = document.getElementById("part-quantity");
+  
+  const partName = partNameInput.value.trim();
+  const quantity = parseInt(partQuantityInput.value);
+  
+  if (!partName) {
+    showToast("Por favor, informe o nome da peça.", "warning");
+    partNameInput.focus();
+    return;
+  }
+  
+  if (!quantity || quantity < 1) {
+    showToast("Por favor, informe uma quantidade maior ou igual a 1.", "warning");
+    partQuantityInput.focus();
+    return;
+  }
+  
+  // Check if part already exists in formAddedParts list
+  const existingPartIndex = formAddedParts.findIndex(p => p.name.toLowerCase() === partName.toLowerCase());
+  if (existingPartIndex !== -1) {
+    formAddedParts[existingPartIndex].quantity += quantity;
+  } else {
+    formAddedParts.push({
+      name: partName,
+      quantity: quantity
+    });
+  }
+  
+  // Clear inputs
+  partNameInput.value = "";
+  partQuantityInput.value = "1";
+  
+  renderFormAddedParts();
+  updateSummaryPreview();
+  showToast("Peça adicionada à lista!");
+}
+
+// Render the list of added parts in the form
+function renderFormAddedParts() {
+  const listContainer = document.getElementById("added-parts-list");
+  if (!listContainer) return;
+  
+  if (formAddedParts.length === 0) {
+    listContainer.innerHTML = `
+      <div class="empty-parts-message">
+        Nenhuma peça adicionada ainda. Preencha os campos acima e clique em "Adicionar Peça" (ou clique direto em "Confirmar Solicitação" se for apenas uma peça).
+      </div>
+    `;
+    return;
+  }
+  
+  listContainer.innerHTML = "";
+  formAddedParts.forEach((part, index) => {
+    const item = document.createElement("div");
+    item.className = "added-part-item";
+    item.innerHTML = `
+      <div class="added-part-info">
+        <i data-lucide="tool" style="width: 16px; height: 16px; color: var(--primary);"></i>
+        <span class="added-part-name">${part.name}</span>
+        <span class="added-part-qty">${part.quantity}x</span>
+      </div>
+      <button type="button" class="btn-remove-part" data-index="${index}" title="Remover">
+        <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+      </button>
+    `;
+    listContainer.appendChild(item);
+  });
+  
+  // Setup remove button handlers
+  listContainer.querySelectorAll(".btn-remove-part").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const index = parseInt(btn.getAttribute("data-index"));
+      formAddedParts.splice(index, 1);
+      renderFormAddedParts();
+      updateSummaryPreview();
+    });
+  });
+  
+  lucide.createIcons();
 }
 
 // Form Event Listeners
@@ -334,12 +467,19 @@ function setupFormEventListeners() {
 
   const btnReset = document.getElementById("btn-reset-form");
   const btnCopySummary = document.getElementById("btn-copy-summary");
+  const btnAddPart = document.getElementById("btn-add-part");
+
+  if (btnAddPart) {
+    btnAddPart.addEventListener("click", addPartToList);
+  }
 
   btnReset.addEventListener("click", () => {
     form.reset();
     if (state.settings.defaultRequester) {
       document.getElementById("requester-name").value = state.settings.defaultRequester;
     }
+    formAddedParts = [];
+    renderFormAddedParts();
     updateSummaryPreview();
     showToast("Formulário limpo", "info");
   });
@@ -350,20 +490,34 @@ function setupFormEventListeners() {
     
     const requester = document.getElementById("requester-name").value || "Técnico";
     const deviceModel = document.getElementById("device-model").value || "Não especificado";
-    const partName = document.getElementById("part-name").value || "Não especificado";
-    const quantity = document.getElementById("part-quantity").value || "1";
     
     const urgencyActive = document.querySelector('input[name="urgency"]:checked');
     const urgency = urgencyActive ? urgencyActive.value : "Baixa";
     
     const notes = document.getElementById("request-notes").value || "";
 
+    // Gather all parts
+    const copyParts = [...formAddedParts];
+    const currentPartName = document.getElementById("part-name").value.trim();
+    const currentQuantity = parseInt(document.getElementById("part-quantity").value) || 1;
+    
+    if (currentPartName) {
+      const existingIdx = copyParts.findIndex(p => p.name.toLowerCase() === currentPartName.toLowerCase());
+      if (existingIdx !== -1) {
+        copyParts[existingIdx].quantity += currentQuantity;
+      } else {
+        copyParts.push({
+          name: currentPartName,
+          quantity: currentQuantity
+        });
+      }
+    }
+
     const textToCopy = generateSummaryText({
       date: dateStr,
       requester,
       deviceModel,
-      partName,
-      quantity,
+      parts: copyParts,
       urgency,
       notes
     });
@@ -408,53 +562,84 @@ function validateForm() {
     return false;
   }
 
-  if (!partName) {
-    showToast("Nome da peça é obrigatório", "error");
+  // Check if both list and inputs are empty
+  if (formAddedParts.length === 0 && !partName) {
+    showToast("Adicione pelo menos uma peça à solicitação", "error");
     return false;
   }
-  if (!quantity || quantity < 1) {
+
+  // If partName is typed, quantity must be valid
+  if (partName && (!quantity || quantity < 1)) {
     showToast("Insira uma quantidade válida superior a 0", "error");
     return false;
   }
+
   return true;
 }
 
 async function saveRequestFromForm() {
   const requester = document.getElementById("requester-name").value.trim();
   const deviceModel = document.getElementById("device-model").value.trim();
-  const partName = document.getElementById("part-name").value.trim();
-  const quantity = parseInt(document.getElementById("part-quantity").value);
+  const currentPartName = document.getElementById("part-name").value.trim();
+  const currentQuantity = parseInt(document.getElementById("part-quantity").value);
   
   const urgencyActive = document.querySelector('input[name="urgency"]:checked');
   const urgency = urgencyActive ? urgencyActive.value : "Baixa";
   
   const notes = document.getElementById("request-notes").value.trim();
   
-  const now = new Date();
-  
-  const newRequest = {
-    id: "req_" + Date.now() + "_" + Math.floor(Math.random() * 1000),
-    createdAt: now.toISOString(),
-    requester,
-    deviceModel,
-    partName,
-    quantity,
-    urgency,
-    notes,
-    status: "Pendente",
-    logs: [
-      {
-        timestamp: now.toISOString(),
-        status: "Pendente",
-        notes: "Solicitação registrada no sistema"
-      }
-    ]
-  };
+  const partsToRequest = [...formAddedParts];
+  if (currentPartName) {
+    const existingIdx = partsToRequest.findIndex(p => p.name.toLowerCase() === currentPartName.toLowerCase());
+    if (existingIdx !== -1) {
+      partsToRequest[existingIdx].quantity += currentQuantity;
+    } else {
+      partsToRequest.push({
+        name: currentPartName,
+        quantity: currentQuantity
+      });
+    }
+  }
 
-  state.requests.unshift(newRequest);
+  const now = new Date();
+  const createdRequests = [];
+
+  for (let i = 0; i < partsToRequest.length; i++) {
+    const part = partsToRequest[i];
+    // Add tiny offsets to preserve ordering in DB/view (since they render in DESC order)
+    const timestamp = new Date(now.getTime() - i * 1000);
+    
+    const newRequest = {
+      id: "req_" + timestamp.getTime() + "_" + Math.floor(Math.random() * 1000),
+      createdAt: timestamp.toISOString(),
+      requester,
+      deviceModel,
+      partName: part.name,
+      quantity: part.quantity,
+      urgency,
+      notes,
+      status: "Pendente",
+      logs: [
+        {
+          timestamp: timestamp.toISOString(),
+          status: "Pendente",
+          notes: "Solicitação registrada no sistema"
+        }
+      ]
+    };
+    createdRequests.push(newRequest);
+  }
+
+  // Put them all at the beginning of the requests array
+  state.requests.unshift(...createdRequests);
+
   if (!(await saveRequests())) return null;
 
-  showToast(`Solicitação de "${partName}" salva com sucesso!`);
+  if (partsToRequest.length === 1) {
+    showToast(`Solicitação de "${partsToRequest[0].name}" salva com sucesso!`);
+  } else {
+    showToast(`${partsToRequest.length} solicitações salvas com sucesso!`);
+  }
 
   // Clear inputs (except Requester Name)
   document.getElementById("device-model").value = "";
@@ -463,9 +648,13 @@ async function saveRequestFromForm() {
   document.getElementById("urgency-low").checked = true;
   document.getElementById("request-notes").value = "";
 
+  // Reset form parts list
+  formAddedParts = [];
+  renderFormAddedParts();
+
   updateSummaryPreview();
 
-  return newRequest;
+  return createdRequests[0];
 }
 
 // Autocomplete logic

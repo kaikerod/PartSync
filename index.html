@@ -247,22 +247,45 @@
                   </div>
                 </div>
 
-                <!-- Part Name -->
-                <div class="form-group">
-                  <label for="part-name">Peça Necessária <span class="required">*</span></label>
-                  <div class="input-with-icon autocomplete">
-                    <i data-lucide="tool"></i>
-                    <input type="text" id="part-name" required placeholder="Ex: Tela Frontal AMOLED, Bateria Original, Sub-Placa">
-                    <div id="part-autocomplete-list" class="autocomplete-items"></div>
-                  </div>
-                </div>
+                <!-- Part Selection Section -->
+                <div class="part-add-section col-full">
+                  <div class="part-add-grid">
+                    <!-- Part Name -->
+                    <div class="form-group">
+                      <label for="part-name">Peça Necessária <span class="required">*</span></label>
+                      <div class="input-with-icon autocomplete">
+                        <i data-lucide="tool"></i>
+                        <input type="text" id="part-name" placeholder="Ex: Tela Frontal Super AMOLED, Bateria, Sub-Placa">
+                        <div id="part-autocomplete-list" class="autocomplete-items"></div>
+                      </div>
+                    </div>
 
-                <!-- Quantity -->
-                <div class="form-group col-half">
-                  <label for="part-quantity">Quantidade <span class="required">*</span></label>
-                  <div class="input-with-icon">
-                    <i data-lucide="hash"></i>
-                    <input type="number" id="part-quantity" required min="1" value="1">
+                    <!-- Quantity -->
+                    <div class="form-group">
+                      <label for="part-quantity">Quantidade <span class="required">*</span></label>
+                      <div class="input-with-icon">
+                        <i data-lucide="hash"></i>
+                        <input type="number" id="part-quantity" min="1" value="1">
+                      </div>
+                    </div>
+
+                    <!-- Add Button -->
+                    <div class="form-group btn-add-group">
+                      <label>&nbsp;</label>
+                      <button type="button" id="btn-add-part" class="btn btn-secondary">
+                        <i data-lucide="plus-circle"></i> Adicionar Peça
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Added Parts List Display -->
+                  <div class="added-parts-container">
+                    <label>Peças na Solicitação:</label>
+                    <div id="added-parts-list" class="added-parts-list">
+                      <div class="empty-parts-message">
+                        Nenhuma peça adicionada ainda. Preencha os campos acima e clique em "Adicionar Peça" (ou clique direto em "Confirmar Solicitação" se for apenas uma peça).
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -338,14 +361,11 @@
                     <span class="field-val text-white" id="sum-device" style="font-weight:600;">-</span>
                   </div>
 
-                  <div class="paper-field">
-                    <span class="field-label">Peça:</span>
-                    <span class="field-val text-white" id="sum-part" style="font-weight:600;">-</span>
-                  </div>
-
-                  <div class="paper-field">
-                    <span class="field-label">Quantidade:</span>
-                    <span class="field-val" id="sum-quantity">1x</span>
+                  <div class="paper-field-block" id="sum-parts-block" style="margin-bottom: 12px;">
+                    <span class="field-label">Peças:</span>
+                    <div id="sum-parts-list" style="margin-top: 6px;">
+                      <!-- Will be filled dynamically -->
+                    </div>
                   </div>
 
                   <div class="paper-field">
