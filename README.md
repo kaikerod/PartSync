@@ -15,7 +15,7 @@ A aplicação foi criada para fornecer um fluxo de trabalho claro e organizado d
 - 📦 **Painel de Controle (Dashboard)**: Estatísticas rápidas de solicitações (Total, Pendentes, Encomendadas e Entregues) para dar visibilidade do fluxo operacional.
 - 📜 **Histórico Geral**: Lista pesquisável e filtrável de solicitações. Permite alterar o status da peça individualmente (Pendente ➡️ Encomendado ➡️ Entregue ➡️ Cancelado) registrando notas de histórico.
 - 🗳️ **Alteração de Status em Lote (Bulk Update)**: Selecione múltiplos registros ativos de uma vez no histórico e aplique uma atualização em lote (ex: marcar 5 peças como "Encomendadas" simultaneamente), poupando tempo na gestão.
-- ⚙️ **Configurações Locais**: Permite definir o nome padrão do técnico solicitante para autopreenchimento rápido.
+- ⚙️ **Configurações Locais**: Permite definir o nome padrão do técnico.
 - 💾 **Exportação de Dados (CSV)**: Faça o download das suas solicitações localmente em formato `.csv` compatível com Excel e Google Sheets para relatórios e acompanhamento de auditoria.
 
 ---

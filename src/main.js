@@ -87,9 +87,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   setupModals();
   updateDashboard();
   
-  // Fill default requester on new request form if exists
+  // Set default technician name on profile if exists
   if (state.settings.defaultRequester) {
-    document.getElementById("requester-name").value = state.settings.defaultRequester;
     document.getElementById("display-user-name").textContent = state.settings.defaultRequester;
   } else {
     document.getElementById("display-user-name").textContent = "Técnico Convidado";
@@ -299,13 +298,28 @@ function generateSummaryText(data) {
   return `FICHA DE SOLICITAÇÃO - PARTSYNC
 ----------------------------------
 Data/Hora: ${data.date}
-Solicitante: ${data.requester}
+Cliente: ${data.requester}
 Aparelho: ${data.deviceModel}
 ${partsText}
 Urgência: ${data.urgency}
 ----------------------------------
 Observações: ${data.notes || "Nenhuma."}`;
 }
+
+// Automatically ensures "Conjunto de Fitas" is included if other parts are requested
+function ensureTapeSet(parts) {
+  const hasOtherParts = parts.some(p => p.name.toLowerCase() !== "conjunto de fitas");
+  const hasTapeSet = parts.some(p => p.name.toLowerCase() === "conjunto de fitas");
+
+  if (hasOtherParts && !hasTapeSet) {
+    parts.push({
+      name: "Conjunto de Fitas",
+      quantity: 1
+    });
+  }
+  return parts;
+}
+
 
 // Live update of the Ficha Técnica summary panel
 function updateSummaryPreview() {
@@ -347,6 +361,8 @@ function updateSummaryPreview() {
         });
       }
     }
+    
+    ensureTapeSet(previewParts);
     
     if (previewParts.length === 0) {
       sumPartsList.innerHTML = `
@@ -511,9 +527,6 @@ function setupFormEventListeners() {
 
   btnReset.addEventListener("click", () => {
     form.reset();
-    if (state.settings.defaultRequester) {
-      document.getElementById("requester-name").value = state.settings.defaultRequester;
-    }
     formAddedParts = [];
     renderFormAddedParts();
     updateSummaryPreview();
@@ -524,7 +537,7 @@ function setupFormEventListeners() {
     const now = new Date();
     const dateStr = now.toLocaleDateString("pt-BR") + " " + now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
     
-    const requester = document.getElementById("requester-name").value || "Técnico";
+    const requester = document.getElementById("requester-name").value || "Cliente";
     const deviceModel = document.getElementById("device-model").value || "Não especificado";
     
     const urgencyActive = document.querySelector('input[name="urgency"]:checked');
@@ -548,6 +561,8 @@ function setupFormEventListeners() {
         });
       }
     }
+
+    ensureTapeSet(copyParts);
 
     const textToCopy = generateSummaryText({
       date: dateStr,
@@ -579,7 +594,7 @@ function validateForm() {
   const quantity = document.getElementById("part-quantity").value;
 
   if (!requester) {
-    showToast("Nome do solicitante é obrigatório", "error");
+    showToast("Nome do cliente é obrigatório", "error");
     return false;
   }
   if (!deviceModel) {
@@ -637,7 +652,10 @@ async function saveRequestFromForm() {
     }
   }
 
+  ensureTapeSet(partsToRequest);
+
   const now = new Date();
+  const orderId = "ord_" + now.getTime() + "_" + Math.floor(Math.random() * 1000);
   const createdRequests = [];
 
   for (let i = 0; i < partsToRequest.length; i++) {
@@ -655,6 +673,7 @@ async function saveRequestFromForm() {
       urgency,
       notes,
       status: "Pendente",
+      orderId,
       logs: [
         {
           timestamp: timestamp.toISOString(),
@@ -677,7 +696,8 @@ async function saveRequestFromForm() {
     showToast(`${partsToRequest.length} solicitações salvas com sucesso!`);
   }
 
-  // Clear inputs (except Requester Name)
+  // Clear inputs (including Client Name)
+  document.getElementById("requester-name").value = "";
   document.getElementById("device-model").value = "";
   document.getElementById("part-name").value = "";
   document.getElementById("part-quantity").value = 1;
@@ -837,9 +857,9 @@ function updateDashboard() {
   const recentTbody = document.getElementById("recent-requests-tbody");
   if (!recentTbody) return;
 
-  const recentRequests = state.requests.slice(0, 5);
+  const recentGroups = groupRequests(state.requests).slice(0, 5);
 
-  if (recentRequests.length === 0) {
+  if (recentGroups.length === 0) {
     recentTbody.innerHTML = `
       <tr class="empty-row-placeholder">
         <td colspan="7" class="text-center">
@@ -857,41 +877,89 @@ function updateDashboard() {
 
   recentTbody.innerHTML = "";
   
-  recentRequests.forEach(req => {
-    const dateObj = new Date(req.createdAt);
-    const dateFormatted = dateObj.toLocaleDateString("pt-BR") + " " + dateObj.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  recentGroups.forEach(group => {
+    const N = group.items.length;
     
-    const statusClass = req.status.toLowerCase();
-    const urgencyClass = req.urgency.toLowerCase() === "baixa" ? "low" : req.urgency.toLowerCase() === "média" ? "medium" : "high";
+    group.items.forEach((req, i) => {
+      const tr = document.createElement("tr");
+      tr.className = "order-row";
+      tr.setAttribute("data-order-id", group.orderId || group.key);
+      
+      if (i === 0) {
+        tr.classList.add("order-row-first");
+        if (N === 1) tr.classList.add("order-row-last");
+      } else if (i === N - 1) {
+        tr.classList.add("order-row-last");
+      } else {
+        tr.classList.add("order-row-middle");
+      }
 
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${dateFormatted}</td>
-      <td style="font-weight: 600;">${req.deviceModel}</td>
-      <td>${req.partName}</td>
-      <td>${req.quantity}</td>
-      <td>
-        <span class="urgency-badge">
-          <span class="urgency-dot ${urgencyClass}"></span>
-          <span>${req.urgency}</span>
-        </span>
-      </td>
-      <td><span class="badge ${statusClass}">${req.status}</span></td>
-      <td>
-        <div class="actions-cell">
-          <button class="btn btn-secondary btn-icon-only btn-status-shortcut" data-id="${req.id}" title="Alterar Status">
-            <i data-lucide="edit-3"></i>
-          </button>
-        </div>
-      </td>
-    `;
-    recentTbody.appendChild(tr);
+      const statusClass = req.status.toLowerCase();
+
+      if (i === 0) {
+        const dateObj = new Date(group.createdAt);
+        const dateFormatted = dateObj.toLocaleDateString("pt-BR") + " " + dateObj.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+        const urgencyClass = group.urgency.toLowerCase() === "baixa" ? "low" : group.urgency.toLowerCase() === "média" ? "medium" : "high";
+
+        tr.innerHTML = `
+          <td rowspan="${N}">${dateFormatted}</td>
+          <td rowspan="${N}" style="font-weight: 600;">${group.deviceModel}</td>
+          <td>${req.partName}</td>
+          <td>${req.quantity}</td>
+          <td rowspan="${N}">
+            <span class="urgency-badge">
+              <span class="urgency-dot ${urgencyClass}"></span>
+              <span>${group.urgency}</span>
+            </span>
+          </td>
+          <td><span class="badge ${statusClass}">${req.status}</span></td>
+          <td>
+            <div class="actions-cell">
+              <button class="btn btn-secondary btn-icon-only btn-status-shortcut" data-id="${req.id}" title="Alterar Status">
+                <i data-lucide="edit-3"></i>
+              </button>
+            </div>
+          </td>
+        `;
+      } else {
+        tr.innerHTML = `
+          <td>${req.partName}</td>
+          <td>${req.quantity}</td>
+          <td><span class="badge ${statusClass}">${req.status}</span></td>
+          <td>
+            <div class="actions-cell">
+              <button class="btn btn-secondary btn-icon-only btn-status-shortcut" data-id="${req.id}" title="Alterar Status">
+                <i data-lucide="edit-3"></i>
+              </button>
+            </div>
+          </td>
+        `;
+      }
+      recentTbody.appendChild(tr);
+    });
   });
 
   // Setup table action button
   recentTbody.querySelectorAll(".btn-status-shortcut").forEach(btn => {
     btn.addEventListener("click", () => {
       openStatusModal(btn.getAttribute("data-id"));
+    });
+  });
+
+  // Hover effect for grouped rows on dashboard
+  const orderRows = recentTbody.querySelectorAll(".order-row");
+  orderRows.forEach(row => {
+    const orderId = row.getAttribute("data-order-id");
+    if (!orderId) return;
+    row.addEventListener("mouseenter", () => {
+      recentTbody.querySelectorAll(`.order-row[data-order-id="${orderId}"]`).forEach(r => {
+        r.classList.add("order-row-hover");
+      });
+    });
+    row.addEventListener("mouseleave", () => {
+      recentTbody.querySelectorAll(`.order-row[data-order-id="${orderId}"]`).forEach(r => {
+        r.classList.remove("order-row-hover");
+      });
     });
   });
 
@@ -971,14 +1039,46 @@ function setupHistoryFilters() {
   }
 }
 
+function groupRequests(requestsList) {
+  const groups = [];
+  const groupMap = new Map();
+
+  requestsList.forEach(req => {
+    let key = req.orderId;
+    if (!key) {
+      const timeKey = Math.floor(new Date(req.createdAt).getTime() / 10000);
+      key = `legacy_${req.requester}_${req.deviceModel}_${req.urgency}_${timeKey}`;
+    }
+
+    if (!groupMap.has(key)) {
+      const group = {
+        key: key,
+        orderId: req.orderId || "",
+        createdAt: req.createdAt,
+        requester: req.requester,
+        deviceModel: req.deviceModel,
+        urgency: req.urgency,
+        notes: req.notes,
+        items: []
+      };
+      groupMap.set(key, group);
+      groups.push(group);
+    }
+    groupMap.get(key).items.push(req);
+  });
+
+  return groups;
+}
+
 function renderHistoryTable() {
   const tbody = document.getElementById("history-tbody");
   if (!tbody) return;
 
   // Filter requests
   const filtered = getFilteredRequests();
+  const groups = groupRequests(filtered);
 
-  if (filtered.length === 0) {
+  if (groups.length === 0) {
     tbody.innerHTML = `
       <tr>
         <td colspan="8" class="text-center">
@@ -995,42 +1095,76 @@ function renderHistoryTable() {
 
   tbody.innerHTML = "";
 
-  filtered.forEach(req => {
-    const dateObj = new Date(req.createdAt);
-    const dateFormatted = dateObj.toLocaleDateString("pt-BR") + " " + dateObj.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  groups.forEach(group => {
+    const N = group.items.length;
     
-    const statusClass = req.status.toLowerCase();
-    const urgencyClass = req.urgency.toLowerCase() === "baixa" ? "low" : req.urgency.toLowerCase() === "média" ? "medium" : "high";
+    group.items.forEach((req, i) => {
+      const tr = document.createElement("tr");
+      tr.className = "order-row";
+      tr.setAttribute("data-order-id", group.orderId || group.key);
 
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${dateFormatted}</td>
-      <td>${req.requester}</td>
-      <td style="font-weight: 600;">${req.deviceModel}</td>
-      <td>${req.partName}</td>
-      <td>${req.quantity}</td>
-      <td>
-        <span class="urgency-badge">
-          <span class="urgency-dot ${urgencyClass}"></span>
-          <span>${req.urgency}</span>
-        </span>
-      </td>
-      <td><span class="badge ${statusClass}">${req.status}</span></td>
-      <td>
-        <div class="actions-cell">
-          <button class="btn btn-secondary btn-icon-only btn-status-shortcut" data-id="${req.id}" title="Alterar Status">
-            <i data-lucide="edit-3"></i>
-          </button>
-          <button class="btn btn-secondary btn-icon-only btn-copy-shortcut" data-id="${req.id}" title="Copiar Ficha Técnica">
-            <i data-lucide="copy"></i>
-          </button>
-          <button class="btn btn-danger btn-icon-only btn-delete-shortcut" data-id="${req.id}" title="Excluir">
-            <i data-lucide="trash-2"></i>
-          </button>
-        </div>
-      </td>
-    `;
-    tbody.appendChild(tr);
+      if (i === 0) {
+        tr.classList.add("order-row-first");
+        if (N === 1) tr.classList.add("order-row-last");
+      } else if (i === N - 1) {
+        tr.classList.add("order-row-last");
+      } else {
+        tr.classList.add("order-row-middle");
+      }
+
+      const statusClass = req.status.toLowerCase();
+
+      if (i === 0) {
+        const dateObj = new Date(group.createdAt);
+        const dateFormatted = dateObj.toLocaleDateString("pt-BR") + " " + dateObj.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+        const urgencyClass = group.urgency.toLowerCase() === "baixa" ? "low" : group.urgency.toLowerCase() === "média" ? "medium" : "high";
+
+        tr.innerHTML = `
+          <td rowspan="${N}">${dateFormatted}</td>
+          <td rowspan="${N}">${group.requester}</td>
+          <td rowspan="${N}" style="font-weight: 600;">${group.deviceModel}</td>
+          <td>${req.partName}</td>
+          <td>${req.quantity}</td>
+          <td rowspan="${N}">
+            <span class="urgency-badge">
+              <span class="urgency-dot ${urgencyClass}"></span>
+              <span>${group.urgency}</span>
+            </span>
+          </td>
+          <td><span class="badge ${statusClass}">${req.status}</span></td>
+          <td>
+            <div class="actions-cell">
+              <button class="btn btn-secondary btn-icon-only btn-status-shortcut" data-id="${req.id}" title="Alterar Status">
+                <i data-lucide="edit-3"></i>
+              </button>
+              <button class="btn btn-secondary btn-icon-only btn-copy-shortcut" data-id="${req.id}" data-is-group="true" data-group-key="${group.key}" title="Copiar Ficha Técnica do Pedido">
+                <i data-lucide="copy"></i>
+              </button>
+              <button class="btn btn-danger btn-icon-only btn-delete-shortcut" data-id="${req.id}" title="Excluir">
+                <i data-lucide="trash-2"></i>
+              </button>
+            </div>
+          </td>
+        `;
+      } else {
+        tr.innerHTML = `
+          <td>${req.partName}</td>
+          <td>${req.quantity}</td>
+          <td><span class="badge ${statusClass}">${req.status}</span></td>
+          <td>
+            <div class="actions-cell">
+              <button class="btn btn-secondary btn-icon-only btn-status-shortcut" data-id="${req.id}" title="Alterar Status">
+                <i data-lucide="edit-3"></i>
+              </button>
+              <button class="btn btn-danger btn-icon-only btn-delete-shortcut" data-id="${req.id}" title="Excluir">
+                <i data-lucide="trash-2"></i>
+              </button>
+            </div>
+          </td>
+        `;
+      }
+      tbody.appendChild(tr);
+    });
   });
 
   // Hook actions
@@ -1042,14 +1176,42 @@ function renderHistoryTable() {
 
   tbody.querySelectorAll(".btn-copy-shortcut").forEach(btn => {
     btn.addEventListener("click", () => {
-      const req = state.requests.find(r => r.id === btn.getAttribute("data-id"));
-      if (req) {
-        const formattedDate = new Date(req.createdAt).toLocaleDateString("pt-BR") + " " + 
-                              new Date(req.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-        const text = generateSummaryText({ ...req, date: formattedDate });
-        navigator.clipboard.writeText(text)
-          .then(() => showToast("Ficha técnica copiada!"))
-          .catch(() => showToast("Erro ao copiar.", "error"));
+      const isGroup = btn.getAttribute("data-is-group") === "true";
+      if (isGroup) {
+        const groupKey = btn.getAttribute("data-group-key");
+        const group = groups.find(g => g.key === groupKey);
+        if (group) {
+          const formattedDate = new Date(group.createdAt).toLocaleDateString("pt-BR") + " " + 
+                                new Date(group.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+          
+          const parts = group.items.map(item => ({
+            name: item.partName,
+            quantity: item.quantity
+          }));
+          
+          const text = generateSummaryText({
+            date: formattedDate,
+            requester: group.requester,
+            deviceModel: group.deviceModel,
+            urgency: group.urgency,
+            notes: group.notes,
+            parts: parts
+          });
+          
+          navigator.clipboard.writeText(text)
+            .then(() => showToast("Ficha técnica do pedido copiada!"))
+            .catch(() => showToast("Erro ao copiar.", "error"));
+        }
+      } else {
+        const req = state.requests.find(r => r.id === btn.getAttribute("data-id"));
+        if (req) {
+          const formattedDate = new Date(req.createdAt).toLocaleDateString("pt-BR") + " " + 
+                                new Date(req.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+          const text = generateSummaryText({ ...req, date: formattedDate });
+          navigator.clipboard.writeText(text)
+            .then(() => showToast("Ficha técnica copiada!"))
+            .catch(() => showToast("Erro ao copiar.", "error"));
+        }
       }
     });
   });
@@ -1057,6 +1219,23 @@ function renderHistoryTable() {
   tbody.querySelectorAll(".btn-delete-shortcut").forEach(btn => {
     btn.addEventListener("click", () => {
       void deleteRequest(btn.getAttribute("data-id"));
+    });
+  });
+
+  // Hover effect for grouped rows
+  const orderRows = tbody.querySelectorAll(".order-row");
+  orderRows.forEach(row => {
+    const orderId = row.getAttribute("data-order-id");
+    if (!orderId) return;
+    row.addEventListener("mouseenter", () => {
+      tbody.querySelectorAll(`.order-row[data-order-id="${orderId}"]`).forEach(r => {
+        r.classList.add("order-row-hover");
+      });
+    });
+    row.addEventListener("mouseleave", () => {
+      tbody.querySelectorAll(`.order-row[data-order-id="${orderId}"]`).forEach(r => {
+        r.classList.remove("order-row-hover");
+      });
     });
   });
 
@@ -1109,7 +1288,7 @@ function openStatusModal(id) {
   document.getElementById("modal-req-summary").innerHTML = `
     <strong>Dispositivo:</strong> ${req.deviceModel} <br>
     <strong>Peça:</strong> ${req.partName} (Qtd: ${req.quantity}) <br>
-    <strong>Solicitado por:</strong> ${req.requester} em ${createdDate} <br>
+    <strong>Cliente:</strong> ${req.requester} em ${createdDate} <br>
     <strong>Status Atual:</strong> ${req.status}
   `;
 
@@ -1272,7 +1451,6 @@ function setupSettingsEventListeners() {
     }
     
     if (state.settings.defaultRequester) {
-      document.getElementById("requester-name").value = state.settings.defaultRequester;
       document.getElementById("display-user-name").textContent = state.settings.defaultRequester;
     } else {
       document.getElementById("display-user-name").textContent = "Técnico Convidado";
@@ -1331,7 +1509,7 @@ function downloadCSV(requests, filenamePrefix = "partsync_solicitacoes") {
   }
 
   // CSV Headers
-  const headers = ["ID", "Data/Hora", "Solicitante", "Aparelho", "Peça", "Quantidade", "Urgência", "Status", "Observações"];
+  const headers = ["ID", "Data/Hora", "Cliente", "Aparelho", "Peça", "Quantidade", "Urgência", "Status", "Observações"];
   
   // Convert to CSV lines
   const csvRows = [];

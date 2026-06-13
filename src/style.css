@@ -1950,3 +1950,40 @@ body {
     animation: none;
   }
 }
+
+/* Grouped order rows styling */
+.data-table tbody tr.order-row-first td {
+  border-top: 1px solid rgba(99, 102, 241, 0.2) !important;
+}
+
+.data-table tbody tr.order-row-middle td,
+.data-table tbody tr.order-row-first td:not([rowspan]) {
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.05);
+}
+
+.data-table tbody tr.order-row-last td {
+  border-bottom: 1px solid rgba(99, 102, 241, 0.2) !important;
+}
+
+/* Hover effect on grouped order rows */
+.data-table tbody tr.order-row-hover {
+  background-color: rgba(99, 102, 241, 0.04) !important;
+}
+
+/* Left border visual indicator for grouped items */
+.data-table tbody tr.order-row-first td[rowspan] {
+  position: relative;
+  padding-left: 20px;
+}
+
+.data-table tbody tr.order-row-first td[rowspan]::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(to bottom, var(--primary), var(--secondary));
+  border-radius: 0 4px 4px 0;
+}
+

@@ -32,7 +32,8 @@ export async function createDatabase() {
       quantity INTEGER NOT NULL CHECK (quantity > 0),
       urgency TEXT NOT NULL,
       notes TEXT NOT NULL DEFAULT '',
-      status TEXT NOT NULL
+      status TEXT NOT NULL,
+      order_id TEXT
     );
 
     CREATE TABLE IF NOT EXISTS request_logs (
@@ -53,6 +54,12 @@ export async function createDatabase() {
       ON request_logs(request_id);
   `);
 
+  try {
+    db.exec("ALTER TABLE requests ADD COLUMN order_id TEXT;");
+  } catch (e) {
+    // Column might already exist
+  }
+
   return new PartsDatabase(db, dbPath);
 }
 
@@ -64,8 +71,8 @@ class PartsDatabase {
     this.insertRequest = db.prepare(`
       INSERT INTO requests (
         id, created_at, requester, device_model, part_name,
-        quantity, urgency, notes, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        quantity, urgency, notes, status, order_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     this.insertLog = db.prepare(`
@@ -85,7 +92,8 @@ class PartsDatabase {
         quantity,
         urgency,
         notes,
-        status
+        status,
+        order_id AS orderId
       FROM requests
       ORDER BY created_at DESC
     `).all();
@@ -134,7 +142,8 @@ class PartsDatabase {
           request.quantity,
           request.urgency,
           request.notes,
-          request.status
+          request.status,
+          request.orderId || null
         );
 
         for (const rawLog of request.logs) {
@@ -221,6 +230,7 @@ function normalizeRequest(request) {
     urgency: requiredString(request.urgency, "urgency"),
     notes: optionalString(request.notes),
     status: requiredString(request.status, "status"),
+    orderId: request.orderId ? String(request.orderId).trim() : "",
     logs: Array.isArray(request.logs) ? request.logs : []
   };
 
