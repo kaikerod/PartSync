@@ -404,10 +404,13 @@ function addPartToList() {
   // Clear inputs
   partNameInput.value = "";
   partQuantityInput.value = "1";
+  partNameInput.dispatchEvent(new Event("input", { bubbles: true }));
   
   renderFormAddedParts();
   updateSummaryPreview();
   showToast("Peça adicionada à lista!");
+  partNameInput.focus();
+  return true;
 }
 
 // Render the list of added parts in the form
@@ -418,7 +421,8 @@ function renderFormAddedParts() {
   if (formAddedParts.length === 0) {
     listContainer.innerHTML = `
       <div class="empty-parts-message">
-        Nenhuma peça adicionada ainda. Preencha os campos acima e clique em "Adicionar Peça" (ou clique direto em "Confirmar Solicitação" se for apenas uma peça).
+        <strong>Nenhuma peça na lista.</strong>
+        <span>A peça preenchida acima também entra ao confirmar a solicitação.</span>
       </div>
     `;
     return;
@@ -428,16 +432,35 @@ function renderFormAddedParts() {
   formAddedParts.forEach((part, index) => {
     const item = document.createElement("div");
     item.className = "added-part-item";
-    item.innerHTML = `
-      <div class="added-part-info">
-        <i data-lucide="tool" style="width: 16px; height: 16px; color: var(--primary);"></i>
-        <span class="added-part-name">${part.name}</span>
-        <span class="added-part-qty">${part.quantity}x</span>
-      </div>
-      <button type="button" class="btn-remove-part" data-index="${index}" title="Remover">
-        <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
-      </button>
-    `;
+
+    const info = document.createElement("div");
+    info.className = "added-part-info";
+
+    const toolIcon = document.createElement("i");
+    toolIcon.setAttribute("data-lucide", "tool");
+
+    const name = document.createElement("span");
+    name.className = "added-part-name";
+    name.textContent = part.name;
+
+    const quantity = document.createElement("span");
+    quantity.className = "added-part-qty";
+    quantity.textContent = `${part.quantity}x`;
+
+    info.append(toolIcon, name, quantity);
+
+    const removeButton = document.createElement("button");
+    removeButton.type = "button";
+    removeButton.className = "btn-remove-part";
+    removeButton.dataset.index = String(index);
+    removeButton.title = "Remover";
+    removeButton.setAttribute("aria-label", `Remover ${part.name}`);
+
+    const removeIcon = document.createElement("i");
+    removeIcon.setAttribute("data-lucide", "trash-2");
+    removeButton.appendChild(removeIcon);
+
+    item.append(info, removeButton);
     listContainer.appendChild(item);
   });
   
@@ -472,6 +495,19 @@ function setupFormEventListeners() {
   if (btnAddPart) {
     btnAddPart.addEventListener("click", addPartToList);
   }
+
+  ["part-name", "part-quantity"].forEach(id => {
+    const input = document.getElementById(id);
+    if (!input) return;
+
+    input.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      if (input.getAttribute("aria-activedescendant")) return;
+
+      event.preventDefault();
+      addPartToList();
+    });
+  });
 
   btnReset.addEventListener("click", () => {
     form.reset();
@@ -661,6 +697,9 @@ async function saveRequestFromForm() {
 function setupAutocomplete() {
   function autocomplete(inp, arr, listId) {
     let currentFocus;
+    inp.setAttribute("aria-autocomplete", "list");
+    inp.setAttribute("aria-controls", listId);
+    inp.setAttribute("aria-expanded", "false");
     
     inp.addEventListener("input", function(e) {
       let a, b, i, val = this.value;
@@ -674,25 +713,35 @@ function setupAutocomplete() {
       const filtered = arr.filter(item => item.toLowerCase().includes(val.toLowerCase()));
       if (filtered.length === 0) {
         a.style.display = "none";
+        a.setAttribute("aria-hidden", "true");
+        inp.setAttribute("aria-expanded", "false");
         return;
       }
       
       a.style.display = "block";
+      a.setAttribute("aria-hidden", "false");
+      inp.setAttribute("aria-expanded", "true");
       
-      filtered.slice(0, 8).forEach(item => {
+      filtered.slice(0, 8).forEach((item, index) => {
         b = document.createElement("DIV");
+        b.id = `${listId}-option-${index}`;
+        b.setAttribute("role", "option");
+        b.setAttribute("aria-selected", "false");
+        b.dataset.value = item;
         
         // Bold the matching substring
         const matchIdx = item.toLowerCase().indexOf(val.toLowerCase());
-        const start = item.substr(0, matchIdx);
-        const match = item.substr(matchIdx, val.length);
-        const end = item.substr(matchIdx + val.length);
+        const start = item.slice(0, matchIdx);
+        const match = item.slice(matchIdx, matchIdx + val.length);
+        const end = item.slice(matchIdx + val.length);
         
-        b.innerHTML = `${start}<strong>${match}</strong>${end}`;
-        b.innerHTML += `<input type='hidden' value='${item.replace("'", "&#39;")}'>`;
+        b.append(document.createTextNode(start));
+        const strong = document.createElement("strong");
+        strong.textContent = match;
+        b.append(strong, document.createTextNode(end));
         
         b.addEventListener("click", function(e) {
-          inp.value = this.getElementsByTagName("input")[0].value;
+          inp.value = this.dataset.value;
           closeAllLists();
           // Trigger form update
           updateSummaryPreview();
@@ -705,26 +754,32 @@ function setupAutocomplete() {
     inp.addEventListener("keydown", function(e) {
       let x = document.getElementById(listId);
       if (x) x = x.getElementsByTagName("div");
-      if (e.keyCode == 40) { // down arrow
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
         currentFocus++;
         addActive(x);
-      } else if (e.keyCode == 38) { // up arrow
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
         currentFocus--;
         addActive(x);
-      } else if (e.keyCode == 13) { // enter
+      } else if (e.key === "Enter") {
         if (currentFocus > -1) {
           e.preventDefault();
           if (x) x[currentFocus].click();
         }
+      } else if (e.key === "Escape") {
+        closeAllLists();
       }
     });
     
     function addActive(x) {
-      if (!x) return false;
+      if (!x || x.length === 0) return false;
       removeActive(x);
       if (currentFocus >= x.length) currentFocus = 0;
       if (currentFocus < 0) currentFocus = (x.length - 1);
       x[currentFocus].classList.add("autocomplete-active");
+      x[currentFocus].setAttribute("aria-selected", "true");
+      inp.setAttribute("aria-activedescendant", x[currentFocus].id);
       
       x[currentFocus].scrollIntoView({ block: "nearest" });
     }
@@ -732,7 +787,9 @@ function setupAutocomplete() {
     function removeActive(x) {
       for (let i = 0; i < x.length; i++) {
         x[i].classList.remove("autocomplete-active");
+        x[i].setAttribute("aria-selected", "false");
       }
+      inp.removeAttribute("aria-activedescendant");
     }
     
     function closeAllLists(elmnt) {
@@ -740,7 +797,10 @@ function setupAutocomplete() {
       if (x) {
         x.innerHTML = "";
         x.style.display = "none";
+        x.setAttribute("aria-hidden", "true");
       }
+      inp.setAttribute("aria-expanded", "false");
+      inp.removeAttribute("aria-activedescendant");
     }
     
     // Close when clicking elsewhere

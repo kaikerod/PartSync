@@ -238,61 +238,63 @@
                 </div>
 
                 <!-- Device Model -->
-                <div class="form-group">
+                <div class="form-group col-full">
                   <label for="device-model">Modelo do Dispositivo Samsung <span class="required">*</span></label>
                   <div class="input-with-icon autocomplete">
                     <i data-lucide="smartphone"></i>
-                    <input type="text" id="device-model" required placeholder="Ex: Galaxy S24 Ultra, Galaxy A55">
-                    <div id="device-autocomplete-list" class="autocomplete-items"></div>
+                    <input type="text" id="device-model" required placeholder="Ex: Galaxy S24 Ultra, Galaxy A55" aria-autocomplete="list" aria-controls="device-autocomplete-list" aria-expanded="false">
+                    <div id="device-autocomplete-list" class="autocomplete-items" role="listbox" aria-label="Sugestões de modelos Samsung" aria-hidden="true"></div>
                   </div>
                 </div>
 
                 <!-- Part Selection Section -->
-                <div class="part-add-section col-full">
+                <fieldset class="part-add-section col-full" aria-describedby="parts-required-help">
+                  <legend>Peças da solicitação <span class="required">*</span></legend>
+                  <span id="parts-required-help" class="sr-only">Informe pelo menos uma peça antes de confirmar a solicitação.</span>
                   <div class="part-add-grid">
                     <!-- Part Name -->
                     <div class="form-group">
-                      <label for="part-name">Peça Necessária <span class="required">*</span></label>
+                      <label for="part-name">Peça necessária</label>
                       <div class="input-with-icon autocomplete">
                         <i data-lucide="tool"></i>
-                        <input type="text" id="part-name" placeholder="Ex: Tela Frontal Super AMOLED, Bateria, Sub-Placa">
-                        <div id="part-autocomplete-list" class="autocomplete-items"></div>
+                        <input type="text" id="part-name" placeholder="Ex: Tela Frontal Super AMOLED, Bateria, Sub-Placa" aria-autocomplete="list" aria-controls="part-autocomplete-list" aria-expanded="false">
+                        <div id="part-autocomplete-list" class="autocomplete-items" role="listbox" aria-label="Sugestões de peças" aria-hidden="true"></div>
                       </div>
                     </div>
 
                     <!-- Quantity -->
                     <div class="form-group">
-                      <label for="part-quantity">Quantidade <span class="required">*</span></label>
+                      <label for="part-quantity">Quantidade</label>
                       <div class="input-with-icon">
                         <i data-lucide="hash"></i>
-                        <input type="number" id="part-quantity" min="1" value="1">
+                        <input type="number" id="part-quantity" min="1" step="1" inputmode="numeric" value="1">
                       </div>
                     </div>
 
                     <!-- Add Button -->
                     <div class="form-group btn-add-group">
-                      <label>&nbsp;</label>
                       <button type="button" id="btn-add-part" class="btn btn-secondary">
-                        <i data-lucide="plus-circle"></i> Adicionar Peça
+                        <i data-lucide="plus-circle"></i> Adicionar à lista
                       </button>
                     </div>
                   </div>
 
                   <!-- Added Parts List Display -->
                   <div class="added-parts-container">
-                    <label>Peças na Solicitação:</label>
-                    <div id="added-parts-list" class="added-parts-list">
+                    <div class="added-parts-title">Peças adicionadas</div>
+                    <div id="added-parts-list" class="added-parts-list" aria-live="polite">
                       <div class="empty-parts-message">
-                        Nenhuma peça adicionada ainda. Preencha os campos acima e clique em "Adicionar Peça" (ou clique direto em "Confirmar Solicitação" se for apenas uma peça).
+                        <strong>Nenhuma peça na lista.</strong>
+                        <span>A peça preenchida acima também entra ao confirmar a solicitação.</span>
                       </div>
                     </div>
                   </div>
-                </div>
+                </fieldset>
 
                 <!-- Urgency Level -->
                 <div class="form-group col-full">
-                  <label>Nível de Urgência <span class="required">*</span></label>
-                  <div class="urgency-selector">
+                  <label>Nível de urgência <span class="required">*</span></label>
+                  <div class="urgency-selector" role="radiogroup" aria-label="Nível de urgência">
                     <input type="radio" name="urgency" id="urgency-low" value="Baixa" checked>
                     <label for="urgency-low" class="urgency-label low">
                       <span class="indicator"></span>
@@ -315,8 +317,8 @@
 
                 <!-- Additional Details -->
                 <div class="form-group col-full">
-                  <label for="request-notes">Observações / Detalhes (Opcional)</label>
-                  <textarea id="request-notes" rows="3" placeholder="Insira detalhes adicionais, ex: Cor preta, número do O.S., código do cliente, etc."></textarea>
+                  <label for="request-notes">Observações opcionais</label>
+                  <textarea id="request-notes" rows="3" placeholder="Cor, número da O.S., código do cliente."></textarea>
                 </div>
 
               </div>
@@ -324,10 +326,10 @@
               <!-- Form Action Buttons -->
               <div class="form-actions">
                 <button type="button" id="btn-reset-form" class="btn btn-secondary">
-                  <i data-lucide="rotate-ccw"></i> Limpar
+                  <i data-lucide="rotate-ccw"></i> Limpar formulário
                 </button>
                 <button type="submit" id="btn-save-request" class="btn btn-primary">
-                  <i data-lucide="check-circle"></i> Confirmar Solicitação
+                  <i data-lucide="check-circle"></i> Confirmar solicitação
                 </button>
               </div>
             </form>
