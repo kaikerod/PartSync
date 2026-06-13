@@ -41,6 +41,7 @@ const DEVICEMODELS_DB = [
 
 const PARTS_DB = [
   "Tela Frontal Super AMOLED",
+  "Gabinete Frontal",
   "Bateria de Fábrica",
   "Flex Principal",
   "Sub-Placa de Conector de Carga",
@@ -306,10 +307,34 @@ Urgência: ${data.urgency}
 Observações: ${data.notes || "Nenhuma."}`;
 }
 
-// Automatically ensures "Conjunto de Fitas" is included if other parts are requested
-function ensureTapeSet(parts) {
+function addOrIncrementPart(parts, partName, quantity = 1) {
+  const existingIdx = parts.findIndex(p => p.name.toLowerCase() === partName.toLowerCase());
+
+  if (existingIdx !== -1) {
+    parts[existingIdx].quantity += quantity;
+  } else {
+    parts.push({
+      name: partName,
+      quantity
+    });
+  }
+
+  return parts;
+}
+
+function getPartQuantity(parts, partName) {
+  return parts
+    .filter(p => p.name.toLowerCase() === partName.toLowerCase())
+    .reduce((sum, part) => sum + (parseInt(part.quantity) || 0), 0);
+}
+
+// Automatically ensures companion parts are included when needed
+function ensureRelatedParts(parts) {
   const hasOtherParts = parts.some(p => p.name.toLowerCase() !== "conjunto de fitas");
   const hasTapeSet = parts.some(p => p.name.toLowerCase() === "conjunto de fitas");
+  const hasFrontCabinet = parts.some(p => p.name.toLowerCase() === "gabinete frontal");
+  const hasBattery = parts.some(p => p.name.toLowerCase() === "bateria de fábrica");
+  const frontCabinetQuantity = getPartQuantity(parts, "Gabinete Frontal");
 
   if (hasOtherParts && !hasTapeSet) {
     parts.push({
@@ -317,6 +342,14 @@ function ensureTapeSet(parts) {
       quantity: 1
     });
   }
+
+  if (hasFrontCabinet && !hasBattery) {
+    parts.push({
+      name: "Bateria de Fábrica",
+      quantity: frontCabinetQuantity || 1
+    });
+  }
+
   return parts;
 }
 
@@ -362,7 +395,7 @@ function updateSummaryPreview() {
       }
     }
     
-    ensureTapeSet(previewParts);
+    ensureRelatedParts(previewParts);
     
     if (previewParts.length === 0) {
       sumPartsList.innerHTML = `
@@ -406,15 +439,9 @@ function addPartToList() {
     return;
   }
   
-  // Check if part already exists in formAddedParts list
-  const existingPartIndex = formAddedParts.findIndex(p => p.name.toLowerCase() === partName.toLowerCase());
-  if (existingPartIndex !== -1) {
-    formAddedParts[existingPartIndex].quantity += quantity;
-  } else {
-    formAddedParts.push({
-      name: partName,
-      quantity: quantity
-    });
+  addOrIncrementPart(formAddedParts, partName, quantity);
+  if (partName.toLowerCase() === "gabinete frontal") {
+    addOrIncrementPart(formAddedParts, "Bateria de Fábrica", quantity);
   }
   
   // Clear inputs
@@ -562,7 +589,7 @@ function setupFormEventListeners() {
       }
     }
 
-    ensureTapeSet(copyParts);
+    ensureRelatedParts(copyParts);
 
     const textToCopy = generateSummaryText({
       date: dateStr,
@@ -652,7 +679,7 @@ async function saveRequestFromForm() {
     }
   }
 
-  ensureTapeSet(partsToRequest);
+  ensureRelatedParts(partsToRequest);
 
   const now = new Date();
   const orderId = "ord_" + now.getTime() + "_" + Math.floor(Math.random() * 1000);
