@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PartSync - Gestão de Solicitações de Peças</title>
+  <!-- Google Fonts - Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+<body class="dark-theme">
+  <div class="app-container">
+    
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="logo-area">
+        <div class="logo-icon">
+          <i data-lucide="cpu"></i>
+        </div>
+        <div class="logo-text">
+          <h1>PartSync</h1>
+          <span>Gestão de Peças</span>
+        </div>
+      </div>
+      
+      <nav class="nav-menu">
+        <a href="#dashboard" class="nav-item active" data-target="dashboard">
+          <i data-lucide="layout-dashboard"></i>
+          <span>Dashboard</span>
+        </a>
+        <a href="#nova-solicitacao" class="nav-item" data-target="new-request">
+          <i data-lucide="plus-circle"></i>
+          <span>Nova Solicitação</span>
+        </a>
+        <a href="#historico" class="nav-item" data-target="history">
+          <i data-lucide="history"></i>
+          <span>Histórico Geral</span>
+        </a>
+        <a href="#configuracoes" class="nav-item" data-target="settings">
+          <i data-lucide="settings"></i>
+          <span>Configurações</span>
+        </a>
+      </nav>
+
+      <div class="user-profile">
+        <div class="avatar">
+          <i data-lucide="user"></i>
+        </div>
+        <div class="user-info">
+          <span class="user-name" id="display-user-name">Carregando...</span>
+          <span class="user-role">Técnico</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Mobile Top Header -->
+    <header class="mobile-header">
+      <div class="logo-area">
+        <div class="logo-icon">
+          <i data-lucide="cpu"></i>
+        </div>
+        <span class="logo-text-mobile">PartSync</span>
+      </div>
+      <div class="mobile-user" id="mobile-settings-btn">
+        <i data-lucide="settings"></i>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      
+      <!-- Notification Banner -->
+      <div id="toast-container" class="toast-container"></div>
+
+      <!-- SECTION: DASHBOARD -->
+      <section id="dashboard" class="content-section active">
+        <header class="section-header">
+          <div>
+            <h2>Visão Geral</h2>
+            <p>Acompanhe o andamento das solicitações de peças de reposição.</p>
+          </div>
+          <button class="btn btn-primary btn-new-req-shortcut">
+            <i data-lucide="plus"></i> Solicitar Peça
+          </button>
+        </header>
+
+        <!-- KPI Cards Grid -->
+        <div class="kpi-grid">
+          <div class="kpi-card glow-indigo">
+            <div class="kpi-header">
+              <span class="kpi-title">Total Solicitado</span>
+              <div class="kpi-icon bg-indigo-light">
+                <i data-lucide="package"></i>
+              </div>
+            </div>
+            <div class="kpi-value" id="kpi-total">0</div>
+            <div class="kpi-footer">
+              <span class="text-muted">Total no histórico local</span>
+            </div>
+          </div>
+
+          <div class="kpi-card glow-amber">
+            <div class="kpi-header">
+              <span class="kpi-title">Pendentes / Cotação</span>
+              <div class="kpi-icon bg-amber-light">
+                <i data-lucide="clock"></i>
+              </div>
+            </div>
+            <div class="kpi-value" id="kpi-pending">0</div>
+            <div class="kpi-footer">
+              <span class="text-amber"><span id="pct-pending">0</span>% aguardando ação logística</span>
+            </div>
+          </div>
+
+          <div class="kpi-card glow-blue">
+            <div class="kpi-header">
+              <span class="kpi-title">Encomendados</span>
+              <div class="kpi-icon bg-blue-light">
+                <i data-lucide="shopping-cart"></i>
+              </div>
+            </div>
+            <div class="kpi-value" id="kpi-ordered">0</div>
+            <div class="kpi-footer">
+              <span class="text-blue">Aguardando entrega do fornecedor</span>
+            </div>
+          </div>
+
+          <div class="kpi-card glow-emerald">
+            <div class="kpi-header">
+              <span class="kpi-title">Entregues</span>
+              <div class="kpi-icon bg-emerald-light">
+                <i data-lucide="check-circle-2"></i>
+              </div>
+            </div>
+            <div class="kpi-value" id="kpi-received">0</div>
+            <div class="kpi-footer">
+              <span class="text-emerald">Prontas para uso em bancada</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dashboard Layout -->
+        <div class="dashboard-details">
+          
+          <!-- Recent Requests -->
+          <div class="details-card main-list-card">
+            <div class="card-header">
+              <h3>Solicitações Recentes</h3>
+              <a href="#historico" class="view-all-link" id="view-all-history">Ver Tudo <i data-lucide="arrow-right"></i></a>
+            </div>
+            
+            <div class="table-container">
+              <table class="data-table" id="recent-requests-table">
+                <thead>
+                  <tr>
+                    <th>Data/Hora</th>
+                    <th>Aparelho</th>
+                    <th>Peça</th>
+                    <th>Qtd</th>
+                    <th>Urgência</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="recent-requests-tbody">
+                  <!-- Dynamic rows go here -->
+                  <tr class="empty-row-placeholder">
+                    <td colspan="7" class="text-center">
+                      <div class="empty-state">
+                        <i data-lucide="clipboard-list"></i>
+                        <p>Nenhuma solicitação cadastrada.</p>
+                        <button class="btn btn-secondary btn-sm btn-new-req-shortcut" style="margin-top: 10px;">Solicitar Primeira Peça</button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Quick Logistics Info Helper -->
+          <div class="details-card helper-card">
+            <div class="card-header">
+              <h3>Instruções de Processo</h3>
+            </div>
+            <div class="helper-body">
+              <div class="info-badge">
+                <i data-lucide="info"></i>
+                <div class="badge-text">
+                  <span class="badge-label">Fluxo de Estados</span>
+                  <span class="badge-value">Controle de Ciclo de Vida</span>
+                </div>
+              </div>
+              <p class="helper-text">
+                O PartSync centraliza as requisições de peças. Registre o pedido e o departamento de compras poderá atualizar os estados até a entrega na bancada.
+              </p>
+              <div class="helper-status-summary">
+                <h4>Legenda de Estados:</h4>
+                <ul>
+                  <li><span class="dot pending"></span> <strong>Pendente / Em Cotação:</strong> Peça solicitada pelo técnico, aguardando cotação de valores e fornecedores.</li>
+                  <li><span class="dot ordered"></span> <strong>Encomendado:</strong> Pedido de compra efetuado junto ao fornecedor.</li>
+                  <li><span class="dot received"></span> <strong>Entregue:</strong> Peça recebida na assistência e disponível para a bancada.</li>
+                  <li><span class="dot cancelled"></span> <strong>Cancelado:</strong> Solicitação cancelada (ex: cliente desistiu, peça indisponível).</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION: NEW REQUEST -->
+      <section id="new-request" class="content-section">
+        <header class="section-header">
+          <div>
+            <h2>Nova Solicitação</h2>
+            <p>Preencha os dados do dispositivo e da peça necessária para registrar a solicitação.</p>
+          </div>
+        </header>
+
+        <div class="form-layout">
+          <!-- Request Form Card -->
+          <div class="details-card form-card">
+            <form id="parts-request-form" autocomplete="off">
+              <div class="form-grid">
+                
+                <!-- Requester Info -->
+                <div class="form-group col-full">
+                  <label for="requester-name">Nome do Solicitante <span class="required">*</span></label>
+                  <div class="input-with-icon">
+                    <i data-lucide="user"></i>
+                    <input type="text" id="requester-name" required placeholder="Ex: João da Assistência">
+                  </div>
+                </div>
+
+                <!-- Device Model -->
+                <div class="form-group">
+                  <label for="device-model">Modelo do Dispositivo Samsung <span class="required">*</span></label>
+                  <div class="input-with-icon autocomplete">
+                    <i data-lucide="smartphone"></i>
+                    <input type="text" id="device-model" required placeholder="Ex: Galaxy S24 Ultra, Galaxy A55">
+                    <div id="device-autocomplete-list" class="autocomplete-items"></div>
+                  </div>
+                </div>
+
+                <!-- Part Name -->
+                <div class="form-group">
+                  <label for="part-name">Peça Necessária <span class="required">*</span></label>
+                  <div class="input-with-icon autocomplete">
+                    <i data-lucide="tool"></i>
+                    <input type="text" id="part-name" required placeholder="Ex: Tela Frontal AMOLED, Bateria Original, Sub-Placa">
+                    <div id="part-autocomplete-list" class="autocomplete-items"></div>
+                  </div>
+                </div>
+
+                <!-- Quantity -->
+                <div class="form-group col-half">
+                  <label for="part-quantity">Quantidade <span class="required">*</span></label>
+                  <div class="input-with-icon">
+                    <i data-lucide="hash"></i>
+                    <input type="number" id="part-quantity" required min="1" value="1">
+                  </div>
+                </div>
+
+                <!-- Urgency Level -->
+                <div class="form-group col-full">
+                  <label>Nível de Urgência <span class="required">*</span></label>
+                  <div class="urgency-selector">
+                    <input type="radio" name="urgency" id="urgency-low" value="Baixa" checked>
+                    <label for="urgency-low" class="urgency-label low">
+                      <span class="indicator"></span>
+                      <span>Baixa</span>
+                    </label>
+
+                    <input type="radio" name="urgency" id="urgency-medium" value="Média">
+                    <label for="urgency-medium" class="urgency-label medium">
+                      <span class="indicator"></span>
+                      <span>Média</span>
+                    </label>
+
+                    <input type="radio" name="urgency" id="urgency-high" value="Alta">
+                    <label for="urgency-high" class="urgency-label high">
+                      <span class="indicator"></span>
+                      <span>Alta</span>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Additional Details -->
+                <div class="form-group col-full">
+                  <label for="request-notes">Observações / Detalhes (Opcional)</label>
+                  <textarea id="request-notes" rows="3" placeholder="Insira detalhes adicionais, ex: Cor preta, número do O.S., código do cliente, etc."></textarea>
+                </div>
+
+              </div>
+
+              <!-- Form Action Buttons -->
+              <div class="form-actions">
+                <button type="button" id="btn-reset-form" class="btn btn-secondary">
+                  <i data-lucide="rotate-ccw"></i> Limpar
+                </button>
+                <button type="submit" id="btn-save-request" class="btn btn-primary">
+                  <i data-lucide="check-circle"></i> Confirmar Solicitação
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Preview & Summary Column -->
+          <div class="preview-column">
+            <!-- Dynamic Request Summary Card -->
+            <div class="details-card preview-card glow-indigo">
+              <div class="card-header">
+                <h3>Resumo da Solicitação</h3>
+                <span class="preview-badge"><i data-lucide="file-text"></i> Visualização</span>
+              </div>
+              
+              <div class="summary-preview-body">
+                <div class="summary-paper">
+                  <div class="paper-header">
+                    <div class="paper-title">Ficha de Solicitação</div>
+                    <div class="paper-date" id="paper-date-display">12/06/2026 12:00</div>
+                  </div>
+                  
+                  <div class="paper-divider"></div>
+                  
+                  <div class="paper-field">
+                    <span class="field-label">Solicitante:</span>
+                    <span class="field-val" id="sum-requester">-</span>
+                  </div>
+                  
+                  <div class="paper-field">
+                    <span class="field-label">Aparelho:</span>
+                    <span class="field-val text-white" id="sum-device" style="font-weight:600;">-</span>
+                  </div>
+
+                  <div class="paper-field">
+                    <span class="field-label">Peça:</span>
+                    <span class="field-val text-white" id="sum-part" style="font-weight:600;">-</span>
+                  </div>
+
+                  <div class="paper-field">
+                    <span class="field-label">Quantidade:</span>
+                    <span class="field-val" id="sum-quantity">1x</span>
+                  </div>
+
+                  <div class="paper-field">
+                    <span class="field-label">Urgência:</span>
+                    <span class="field-val" id="sum-urgency">-</span>
+                  </div>
+
+                  <div class="paper-divider"></div>
+
+                  <div class="paper-field-block">
+                    <span class="field-label">Observações Internas:</span>
+                    <div class="field-block-val" id="sum-notes">Nenhuma observação informada.</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="preview-footer">
+                <button id="btn-copy-summary" class="btn btn-secondary btn-sm" type="button">
+                  <i data-lucide="copy"></i> Copiar Ficha Técnica
+                </button>
+              </div>
+            </div>
+
+            <!-- Quick Guidelines -->
+            <div class="details-card info-card">
+              <div class="card-header">
+                <h3>Regras de Requisição</h3>
+              </div>
+              <div class="info-body">
+                <ul class="tips-list">
+                  <li>
+                    <i data-lucide="check-square"></i>
+                    <span><strong>Validação:</strong> Toda solicitação entra no sistema como <strong>Pendente</strong> por padrão.</span>
+                  </li>
+                  <li>
+                    <i data-lucide="eye"></i>
+                    <span><strong>Fluxo de Cotação:</strong> O setor de compras monitora o histórico, realiza as cotações e atualiza o status de cada item.</span>
+                  </li>
+                  <li>
+                    <i data-lucide="bell"></i>
+                    <span>Preencha o modelo completo do dispositivo para evitar compras de peças incorretas.</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION: HISTORY -->
+      <section id="history" class="content-section">
+        <header class="section-header">
+          <div>
+            <h2>Histórico Geral</h2>
+            <p>Monitore, pesquise e atualize os estados das peças solicitadas.</p>
+          </div>
+          <div class="header-actions">
+            <button id="btn-bulk-status-change" class="btn btn-primary btn-sm">
+              <i data-lucide="check-square"></i> Alteração de Status em Lote
+            </button>
+            <button id="btn-export-history-csv" class="btn btn-secondary btn-sm">
+              <i data-lucide="download"></i> Exportar CSV
+            </button>
+          </div>
+        </header>
+
+        <!-- Search & Filter Controls -->
+        <div class="details-card filter-card">
+          <div class="filter-layout">
+            <div class="search-bar">
+              <i data-lucide="search"></i>
+              <input type="text" id="search-history" placeholder="Buscar por modelo, peça, técnico...">
+            </div>
+            
+            <div class="filter-selectors">
+              <div class="filter-group">
+                <label for="filter-status">Status:</label>
+                <select id="filter-status">
+                  <option value="todos">Todos</option>
+                  <option value="Pendente">Pendente</option>
+                  <option value="Encomendado">Encomendado</option>
+                  <option value="Entregue">Entregue</option>
+                  <option value="Cancelado">Cancelado</option>
+                </select>
+              </div>
+
+              <div class="filter-group">
+                <label for="filter-urgency">Urgência:</label>
+                <select id="filter-urgency">
+                  <option value="todos">Todas</option>
+                  <option value="Baixa">Baixa</option>
+                  <option value="Média">Média</option>
+                  <option value="Alta">Alta</option>
+                </select>
+              </div>
+
+              <button id="btn-clear-filters" class="btn btn-secondary btn-icon-only" title="Limpar Filtros">
+                <i data-lucide="filter-x"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- History Content -->
+        <div class="details-card history-list-card">
+          <div class="table-container">
+            <table class="data-table" id="history-table">
+              <thead>
+                <tr>
+                  <th>Data/Hora</th>
+                  <th>Solicitante</th>
+                  <th>Aparelho</th>
+                  <th>Peça</th>
+                  <th>Qtd</th>
+                  <th>Urgência</th>
+                  <th>Status</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="history-tbody">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION: SETTINGS -->
+      <section id="settings" class="content-section">
+        <header class="section-header">
+          <div>
+            <h2>Configurações do Sistema</h2>
+            <p>Defina suas preferências locais e realize backups de segurança.</p>
+          </div>
+        </header>
+
+        <div class="settings-grid">
+          
+          <!-- General Settings -->
+          <div class="details-card settings-card">
+            <div class="card-header">
+              <h3><i data-lucide="sliders"></i> Preferências de Usuário</h3>
+            </div>
+            <div class="card-body">
+              <form id="settings-form">
+                
+                <div class="form-group">
+                  <label for="setting-default-requester">Nome do Técnico Padrão</label>
+                  <div class="input-with-icon">
+                    <i data-lucide="user"></i>
+                    <input type="text" id="setting-default-requester" placeholder="Ex: Lucas Assistência">
+                  </div>
+                  <span class="input-tip">Nome preenchido de forma automática em novos pedidos de peças.</span>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="margin-top: 15px;">
+                  <i data-lucide="save"></i> Salvar Preferências
+                </button>
+
+              </form>
+            </div>
+          </div>
+
+          <!-- Backup & Data Management -->
+          <div class="details-card settings-card">
+            <div class="card-header">
+              <h3><i data-lucide="database"></i> Gerenciamento de Dados</h3>
+            </div>
+            <div class="card-body">
+              <div class="settings-action-block">
+                <h4>Exportar Histórico (CSV)</h4>
+                <p class="text-muted">Faça o download de todas as solicitações registradas em formato CSV para visualização no Excel ou Google Sheets.</p>
+                <button id="btn-export-data" class="btn btn-secondary">
+                  <i data-lucide="download"></i> Exportar CSV
+                </button>
+              </div>
+
+              <div class="settings-action-block danger-zone" style="margin-top: 30px;">
+                <h4>Zona de Limpeza</h4>
+                <p class="text-muted">Apagar permanentemente todos os registros de peças salvas no dispositivo técnico.</p>
+                <button id="btn-reset-app" class="btn btn-danger">
+                  <i data-lucide="trash-2"></i> Limpar Todo o Banco
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Mobile Bottom Tab Navigation -->
+  <nav class="mobile-nav">
+    <a href="#dashboard" class="mobile-nav-item active" data-target="dashboard">
+      <i data-lucide="layout-dashboard"></i>
+      <span>Geral</span>
+    </a>
+    <a href="#nova-solicitacao" class="mobile-nav-item" data-target="new-request">
+      <i data-lucide="plus-circle"></i>
+      <span>Solicitar</span>
+    </a>
+    <a href="#historico" class="mobile-nav-item" data-target="history">
+      <i data-lucide="history"></i>
+      <span>Histórico</span>
+    </a>
+    <a href="#configuracoes" class="mobile-nav-item" data-target="settings">
+      <i data-lucide="settings"></i>
+      <span>Ajustes</span>
+    </a>
+  </nav>
+
+  <!-- MODAL: Update Status -->
+  <div id="status-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Atualizar Status da Solicitação</h3>
+        <button class="close-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="modal-req-id">
+        <div class="req-summary-box" id="modal-req-summary">
+          <!-- Summary generated in JS -->
+        </div>
+        
+        <div class="form-group" style="margin-top: 15px;">
+          <label for="modal-status-select">Novo Status:</label>
+          <select id="modal-status-select" class="form-control">
+            <option value="Pendente">Pendente</option>
+            <option value="Encomendado">Encomendado</option>
+            <option value="Entregue">Entregue</option>
+            <option value="Cancelado">Cancelado</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-top: 15px;">
+          <label for="modal-notes-append">Nota de Histórico / Atualização (opcional):</label>
+          <textarea id="modal-notes-append" rows="2" placeholder="Ex: Rastreio BR12345, Data de entrega estim. 18/06, etc."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary close-modal">Voltar</button>
+        <button class="btn btn-primary" id="btn-save-status-change">Confirmar Alteração</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Bulk Status Update (Replaces Bulk WhatsApp message modal) -->
+  <div id="bulk-status-modal" class="modal">
+    <div class="modal-content modal-lg">
+      <div class="modal-header">
+        <h3>Alteração de Status em Lote</h3>
+        <button class="close-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Selecione as solicitações que deseja atualizar simultaneamente:</p>
+        
+        <div class="bulk-list-container" id="bulk-pending-list">
+          <!-- Populated dynamically with requests -->
+        </div>
+
+        <div class="form-grid" style="margin-top: 20px;">
+          <div class="form-group">
+            <label for="bulk-status-select">Definir Novo Status para Selecionados:</label>
+            <select id="bulk-status-select" class="form-control" style="padding: 10px; background-color: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-md); color: var(--text-primary);">
+              <option value="Pendente">Pendente</option>
+              <option value="Encomendado">Encomendado</option>
+              <option value="Entregue">Entregue</option>
+              <option value="Cancelado">Cancelado</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label for="bulk-notes-append">Nota para Lote (opcional):</label>
+            <input type="text" id="bulk-notes-append" placeholder="Ex: Fornecedor X, Nota fiscal emitida..." style="padding: 10px; background-color: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-md); color: var(--text-primary);">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary close-modal">Cancelar</button>
+        <button class="btn btn-primary" id="btn-confirm-bulk-status">
+          <i data-lucide="check-square"></i> Aplicar em Lote
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
