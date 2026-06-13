@@ -4,9 +4,10 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node --no-warnings --experimental-sqlite server.js",
     "build": "vite build",
-    "preview": "vite preview"
+    "start": "node --no-warnings --experimental-sqlite server.js --prod",
+    "preview": "npm run build && npm run start"
   },
   "devDependencies": {
     "vite": "^5.2.11"

@@ -1,3 +1,5 @@
+import { api } from "./api.js";
+
 // PartSync - Application Logic (Non-WhatsApp Version)
 
 // Autocomplete Dictionaries
@@ -66,8 +68,14 @@ let state = {
 };
 
 // Initialize Application
-document.addEventListener("DOMContentLoaded", () => {
-  loadData();
+document.addEventListener("DOMContentLoaded", async () => {
+  try {
+    await loadData();
+  } catch (error) {
+    console.error(error);
+    showToast("Erro ao conectar ao banco SQLite.", "error");
+  }
+
   setupRouter();
   setupFormEventListeners();
   setupAutocomplete();
@@ -91,27 +99,65 @@ document.addEventListener("DOMContentLoaded", () => {
   updateSummaryPreview();
 });
 
-// Load data from LocalStorage
-function loadData() {
-  const localRequests = localStorage.getItem("partsync_requests");
-  const localSettings = localStorage.getItem("partsync_settings");
+// Load data from SQLite API
+async function loadData() {
+  const [requests, settings] = await Promise.all([
+    api.getRequests(),
+    api.getSettings()
+  ]);
 
-  if (localRequests) {
-    state.requests = JSON.parse(localRequests);
-  } else {
-    state.requests = [];
-  }
+  state.requests = Array.isArray(requests) ? requests : [];
+  state.settings = { ...state.settings, ...settings };
 
-  if (localSettings) {
-    state.settings = { ...state.settings, ...JSON.parse(localSettings) };
+  await migrateLocalStorageData();
+}
+
+async function migrateLocalStorageData() {
+  const localRequests = readLocalJson("partsync_requests", []);
+  const localSettings = readLocalJson("partsync_settings", {});
+  const hasLocalRequests = Array.isArray(localRequests) && localRequests.length > 0;
+  const hasLocalDefaultRequester = Boolean(localSettings.defaultRequester);
+  const shouldMigrate =
+    (state.requests.length === 0 && hasLocalRequests) ||
+    (hasLocalDefaultRequester && !state.settings.defaultRequester);
+
+  if (!shouldMigrate) return;
+
+  const migrated = await api.migrate({
+    requests: hasLocalRequests ? localRequests : [],
+    settings: hasLocalDefaultRequester ? localSettings : state.settings
+  });
+
+  state.requests = Array.isArray(migrated.requests) ? migrated.requests : state.requests;
+  state.settings = { ...state.settings, ...(migrated.settings ?? {}) };
+  localStorage.removeItem("partsync_requests");
+  localStorage.removeItem("partsync_settings");
+}
+
+function readLocalJson(key, fallback) {
+  const raw = localStorage.getItem(key);
+  if (!raw) return fallback;
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return fallback;
   }
 }
 
-// Save requests to LocalStorage
-function saveRequests() {
-  localStorage.setItem("partsync_requests", JSON.stringify(state.requests));
-  updateDashboard();
-  renderHistoryTable();
+// Save requests to SQLite API
+async function saveRequests() {
+  try {
+    const result = await api.saveRequests(state.requests);
+    state.requests = Array.isArray(result.requests) ? result.requests : state.requests;
+    updateDashboard();
+    renderHistoryTable();
+    return true;
+  } catch (error) {
+    console.error(error);
+    showToast("Erro ao salvar no banco SQLite.", "error");
+    return false;
+  }
 }
 
 // Router & Section Toggling
@@ -328,10 +374,10 @@ function setupFormEventListeners() {
   });
 
   // Submit Handler
-  form.addEventListener("submit", (e) => {
+  form.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (validateForm()) {
-      saveRequestFromForm();
+      await saveRequestFromForm();
     }
   });
 }
@@ -373,7 +419,7 @@ function validateForm() {
   return true;
 }
 
-function saveRequestFromForm() {
+async function saveRequestFromForm() {
   const requester = document.getElementById("requester-name").value.trim();
   const deviceModel = document.getElementById("device-model").value.trim();
   const partName = document.getElementById("part-name").value.trim();
@@ -406,7 +452,7 @@ function saveRequestFromForm() {
   };
 
   state.requests.unshift(newRequest);
-  saveRequests();
+  if (!(await saveRequests())) return null;
 
   showToast(`Solicitação de "${partName}" salva com sucesso!`);
 
@@ -761,20 +807,20 @@ function renderHistoryTable() {
 
   tbody.querySelectorAll(".btn-delete-shortcut").forEach(btn => {
     btn.addEventListener("click", () => {
-      deleteRequest(btn.getAttribute("data-id"));
+      void deleteRequest(btn.getAttribute("data-id"));
     });
   });
 
   lucide.createIcons();
 }
 
-function deleteRequest(id) {
+async function deleteRequest(id) {
   const req = state.requests.find(r => r.id === id);
   if (!req) return;
 
   if (confirm(`Tem certeza que deseja excluir o registro de "${req.partName}" para "${req.deviceModel}"?`)) {
     state.requests = state.requests.filter(r => r.id !== id);
-    saveRequests();
+    if (!(await saveRequests())) return;
     showToast("Registro excluído com sucesso.", "info");
     renderHistoryTable();
   }
@@ -829,11 +875,11 @@ function openStatusModal(id) {
   saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
 
   newSaveBtn.addEventListener("click", () => {
-    saveStatusChange(id);
+    void saveStatusChange(id);
   });
 }
 
-function saveStatusChange(id) {
+async function saveStatusChange(id) {
   const newStatus = document.getElementById("modal-status-select").value;
   const appendNotes = document.getElementById("modal-notes-append").value.trim();
   
@@ -857,7 +903,7 @@ function saveStatusChange(id) {
   
   state.requests[reqIndex].logs.push(logEntry);
   
-  saveRequests();
+  if (!(await saveRequests())) return;
   
   // Close modal
   document.getElementById("status-modal").classList.remove("active");
@@ -913,11 +959,11 @@ function openBulkStatusModal() {
   confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
 
   newConfirmBtn.addEventListener("click", () => {
-    saveBulkStatusChange();
+    void saveBulkStatusChange();
   });
 }
 
-function saveBulkStatusChange() {
+async function saveBulkStatusChange() {
   const checkboxes = document.querySelectorAll(".bulk-status-checkbox:checked");
   const selectedIds = Array.from(checkboxes).map(chk => chk.getAttribute("data-id"));
   
@@ -943,7 +989,7 @@ function saveBulkStatusChange() {
     }
   });
 
-  saveRequests();
+  if (!(await saveRequests())) return;
   showToast(`${selectedIds.length} solicitações atualizadas para "${newStatus}"!`);
   
   // Close modal
@@ -962,11 +1008,19 @@ function setupSettingsEventListeners() {
   }
 
   // Save Settings
-  settingsForm.addEventListener("submit", (e) => {
+  settingsForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     
     state.settings.defaultRequester = nameInp.value.trim();
-    localStorage.setItem("partsync_settings", JSON.stringify(state.settings));
+    try {
+      const result = await api.saveSettings(state.settings);
+      state.settings = { ...state.settings, ...(result.settings ?? {}) };
+      localStorage.removeItem("partsync_settings");
+    } catch (error) {
+      console.error(error);
+      showToast("Erro ao salvar preferÃªncias no banco SQLite.", "error");
+      return;
+    }
     
     if (state.settings.defaultRequester) {
       document.getElementById("requester-name").value = state.settings.defaultRequester;
@@ -985,10 +1039,19 @@ function setupSettingsEventListeners() {
   });
 
   // Redefine / Clear App
-  document.getElementById("btn-reset-app").addEventListener("click", () => {
+  document.getElementById("btn-reset-app").addEventListener("click", async () => {
     if (confirm("ATENÇÃO: Isso irá APAGAR TODO o seu histórico e preferências do PartSync permanentemente. Continuar?")) {
       if (confirm("Confirmação final: Deseja mesmo deletar todos os dados?")) {
-        localStorage.clear();
+        try {
+          await api.resetData();
+          localStorage.removeItem("partsync_requests");
+          localStorage.removeItem("partsync_settings");
+        } catch (error) {
+          console.error(error);
+          showToast("Erro ao limpar banco SQLite.", "error");
+          return;
+        }
+
         state.requests = [];
         state.settings = {
           defaultRequester: ""
@@ -998,7 +1061,8 @@ function setupSettingsEventListeners() {
         document.getElementById("requester-name").value = "";
         document.getElementById("display-user-name").textContent = "Técnico Convidado";
         
-        saveRequests();
+        updateDashboard();
+        renderHistoryTable();
         showToast("Aplicativo redefinido para o estado original.", "info");
         
         setTimeout(() => {

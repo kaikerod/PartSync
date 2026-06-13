@@ -54,3 +54,10 @@ Certifique-se de possuir o [Node.js](https://nodejs.org/) instalado em seu compu
 2. Defina o seu **Nome do Técnico Padrão** para evitar ter que digitar seu nome a cada novo pedido.
 3. Clique em **Salvar Preferências**.
 4. Pronto! O PartSync estará configurado e pronto para uso no seu dispositivo.
+---
+
+## Banco SQLite
+
+Servidor Node cria automaticamente o banco local em `data/partsync.sqlite`.
+Use `npm run dev` para abrir app com API e SQLite.
+Use `npm run preview` para compilar e servir versao de producao.
