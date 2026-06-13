@@ -151,17 +151,28 @@
           <div class="details-card main-list-card">
             <div class="card-header">
               <h3>Solicitações Recentes</h3>
-              <a href="#historico" class="view-all-link" id="view-all-history">Ver Tudo <i data-lucide="arrow-right"></i></a>
+              <a href="#historico" class="view-all-link" id="view-all-history">Ver histórico <i data-lucide="arrow-right"></i></a>
             </div>
             
             <div class="table-container">
               <table class="data-table" id="recent-requests-table">
+                <colgroup>
+                  <col class="col-date">
+                  <col class="col-device">
+                  <col class="col-part">
+                  <col class="col-qty">
+                  <col class="col-note">
+                  <col class="col-urgency">
+                  <col class="col-status">
+                  <col class="col-actions">
+                </colgroup>
                 <thead>
                   <tr>
                     <th>Data/Hora</th>
                     <th>Aparelho</th>
                     <th>Peça</th>
                     <th>Qtd</th>
+                    <th>Nota</th>
                     <th>Urgência</th>
                     <th>Status</th>
                     <th>Ações</th>
@@ -170,7 +181,7 @@
                 <tbody id="recent-requests-tbody">
                   <!-- Dynamic rows go here -->
                   <tr class="empty-row-placeholder">
-                    <td colspan="7" class="text-center">
+                    <td colspan="8" class="text-center">
                       <div class="empty-state">
                         <i data-lucide="clipboard-list"></i>
                         <p>Nenhuma solicitação cadastrada.</p>

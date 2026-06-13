@@ -71,6 +71,15 @@ let state = {
 // Temporarily holds parts added to the current form request
 let formAddedParts = [];
 
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // Initialize Application
 document.addEventListener("DOMContentLoaded", async () => {
   try {
@@ -894,7 +903,7 @@ function updateDashboard() {
   if (recentGroups.length === 0) {
     recentTbody.innerHTML = `
       <tr class="empty-row-placeholder">
-        <td colspan="7" class="text-center">
+        <td colspan="8" class="text-center">
           <div class="empty-state">
             <i data-lucide="clipboard-list"></i>
             <p>Nenhuma solicitação cadastrada.</p>
@@ -934,10 +943,11 @@ function updateDashboard() {
         const urgencyClass = group.urgency.toLowerCase() === "baixa" ? "low" : group.urgency.toLowerCase() === "média" ? "medium" : "high";
 
         tr.innerHTML = `
-          <td rowspan="${N}">${dateFormatted}</td>
-          <td rowspan="${N}" style="font-weight: 600;">${group.deviceModel}</td>
-          <td>${req.partName}</td>
-          <td>${req.quantity}</td>
+          <td rowspan="${N}" class="table-date-cell">${dateFormatted}</td>
+          <td rowspan="${N}" class="table-device-cell">${group.deviceModel}</td>
+          <td class="table-part-cell">${req.partName}</td>
+          <td class="table-qty-cell">${req.quantity}</td>
+          <td rowspan="${N}" class="table-note-cell">${group.notes ? escapeHtml(group.notes.trim()) : '<span class="table-note-empty">Sem nota</span>'}</td>
           <td rowspan="${N}">
             <span class="urgency-badge">
               <span class="urgency-dot ${urgencyClass}"></span>
@@ -945,9 +955,9 @@ function updateDashboard() {
             </span>
           </td>
           <td><span class="badge ${statusClass}">${req.status}</span></td>
-          <td>
+          <td class="table-action-cell">
             <div class="actions-cell">
-              <button class="btn btn-secondary btn-icon-only btn-status-shortcut" data-id="${req.id}" title="Alterar Status">
+              <button class="btn btn-secondary btn-icon-only btn-status-shortcut" data-id="${req.id}" title="Alterar Status" aria-label="Alterar status de ${escapeHtml(req.partName)}">
                 <i data-lucide="edit-3"></i>
               </button>
             </div>
@@ -955,12 +965,12 @@ function updateDashboard() {
         `;
       } else {
         tr.innerHTML = `
-          <td>${req.partName}</td>
-          <td>${req.quantity}</td>
+          <td class="table-part-cell">${req.partName}</td>
+          <td class="table-qty-cell">${req.quantity}</td>
           <td><span class="badge ${statusClass}">${req.status}</span></td>
-          <td>
+          <td class="table-action-cell">
             <div class="actions-cell">
-              <button class="btn btn-secondary btn-icon-only btn-status-shortcut" data-id="${req.id}" title="Alterar Status">
+              <button class="btn btn-secondary btn-icon-only btn-status-shortcut" data-id="${req.id}" title="Alterar Status" aria-label="Alterar status de ${escapeHtml(req.partName)}">
                 <i data-lucide="edit-3"></i>
               </button>
             </div>
