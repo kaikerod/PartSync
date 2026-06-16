@@ -325,6 +325,20 @@ async function saveRequests() {
 // Router & Section Toggling
 function setupRouter() {
   const navItems = document.querySelectorAll(".nav-item, .mobile-nav-item, .view-all-link, .btn-new-req-shortcut");
+
+  function resolveRouteTarget(target) {
+    if (target === "nova-solicitacao") return "new-request";
+    if (target === "historico") return "history";
+    if (target === "configuracoes") return "settings";
+    return target;
+  }
+
+  function updateRouteHash(targetId, replace = false) {
+    const nextHash = `#${targetId}`;
+    if (window.location.hash === nextHash) return;
+    const method = replace ? "replaceState" : "pushState";
+    window.history[method](null, "", nextHash);
+  }
   
   function navigateToSection(targetId) {
     // Hide all sections
@@ -369,16 +383,14 @@ function setupRouter() {
   // Monitor links
   navItems.forEach(item => {
     item.addEventListener("click", (e) => {
-      const target = item.getAttribute("data-target") || item.getAttribute("href").replace("#", "");
-      let resolvedTarget = target;
-      if (target === "nova-solicitacao") resolvedTarget = "new-request";
-      if (target === "historico") resolvedTarget = "history";
-      if (target === "configuracoes") resolvedTarget = "settings";
+      const target = item.getAttribute("data-target") || item.getAttribute("href")?.replace("#", "");
+      if (!target) return;
+      const resolvedTarget = resolveRouteTarget(target);
 
       if (document.getElementById(resolvedTarget)) {
         e.preventDefault();
         navigateToSection(resolvedTarget);
-        window.location.hash = resolvedTarget;
+        updateRouteHash(resolvedTarget);
       }
     });
   });
@@ -387,6 +399,7 @@ function setupRouter() {
   document.querySelectorAll(".btn-new-req-shortcut").forEach(btn => {
     btn.addEventListener("click", () => {
       navigateToSection("new-request");
+      updateRouteHash("new-request");
     });
   });
 
@@ -395,14 +408,16 @@ function setupRouter() {
   if (mobileSettingsBtn) {
     mobileSettingsBtn.addEventListener("click", () => {
       navigateToSection("settings");
+      updateRouteHash("settings");
     });
   }
 
   // Handle URL hash on load
   if (window.location.hash) {
-    const hash = window.location.hash.replace("#", "");
+    const hash = resolveRouteTarget(window.location.hash.replace("#", ""));
     if (document.getElementById(hash)) {
       navigateToSection(hash);
+      updateRouteHash(hash, true);
     }
   }
 }
