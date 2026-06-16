@@ -3,202 +3,13 @@ import { api } from "./api.js";
 // PartSync - Application Logic (Non-WhatsApp Version)
 
 // Autocomplete Dictionaries
-const DEVICEMODELS_DB = [
-  // --- GALAXY Z SERIES (FOLDABLES / DOBRÁVEIS) ---
-  "Samsung Galaxy Z Fold 8 5G",
-  "Samsung Galaxy Z Fold 8",
-  "Samsung Galaxy Z Flip 8 5G",
-  "Samsung Galaxy Z Flip 8",
-  "Samsung Galaxy Z Fold 7 5G",
-  "Samsung Galaxy Z Fold 7",
-  "Samsung Galaxy Z Flip 7 5G",
-  "Samsung Galaxy Z Flip 7",
-  "Samsung Galaxy Z Fold Special Edition",
-  "Samsung Galaxy Z Fold 6 5G",
-  "Samsung Galaxy Z Fold 6",
-  "Samsung Galaxy Z Flip 6 5G",
-  "Samsung Galaxy Z Flip 6",
-  "Samsung Galaxy Z Fold 5 5G",
-  "Samsung Galaxy Z Fold 5",
-  "Samsung Galaxy Z Flip 5 5G",
-  "Samsung Galaxy Z Flip 5",
-  "Samsung Galaxy Z Fold 4 5G",
-  "Samsung Galaxy Z Fold 4",
-  "Samsung Galaxy Z Flip 4 5G",
-  "Samsung Galaxy Z Flip 4",
-  "Samsung Galaxy Z Fold 3 5G",
-  "Samsung Galaxy Z Fold 3",
-  "Samsung Galaxy Z Flip 3 5G",
-  "Samsung Galaxy Z Flip 3",
-  "Samsung Galaxy Z Fold 2 5G",
-  "Samsung Galaxy Z Fold 2",
-  "Samsung Galaxy Z Flip 5G",
-  "Samsung Galaxy Z Flip",
-
-  // --- GALAXY S SERIES ---
-  "Samsung Galaxy S26 Ultra",
-  "Samsung Galaxy S26+",
-  "Samsung Galaxy S26",
-  "Samsung Galaxy S25 Ultra",
-  "Samsung Galaxy S25+",
-  "Samsung Galaxy S25",
-  "Samsung Galaxy S25 Slim",
-  "Samsung Galaxy S25 FE",
-  "Samsung Galaxy S24 Ultra",
-  "Samsung Galaxy S24+",
-  "Samsung Galaxy S24",
-  "Samsung Galaxy S24 FE",
-  "Samsung Galaxy S23 Ultra",
-  "Samsung Galaxy S23+",
-  "Samsung Galaxy S23",
-  "Samsung Galaxy S23 FE",
-  "Samsung Galaxy S22 Ultra",
-  "Samsung Galaxy S22+",
-  "Samsung Galaxy S22",
-  "Samsung Galaxy S21 Ultra 5G",
-  "Samsung Galaxy S21 Ultra",
-  "Samsung Galaxy S21+ 5G",
-  "Samsung Galaxy S21+",
-  "Samsung Galaxy S21 5G",
-  "Samsung Galaxy S21",
-  "Samsung Galaxy S21 FE 5G",
-  "Samsung Galaxy S21 FE",
-  "Samsung Galaxy S20 Ultra 5G",
-  "Samsung Galaxy S20 Ultra",
-  "Samsung Galaxy S20+ 5G",
-  "Samsung Galaxy S20+",
-  "Samsung Galaxy S20 5G",
-  "Samsung Galaxy S20",
-  "Samsung Galaxy S20 FE 5G",
-  "Samsung Galaxy S20 FE",
-  "Samsung Galaxy S10 Lite",
-
-  // --- GALAXY NOTE SERIES ---
-  "Samsung Galaxy Note 20 Ultra 5G",
-  "Samsung Galaxy Note 20 Ultra",
-  "Samsung Galaxy Note 20 5G",
-  "Samsung Galaxy Note 20",
-  "Samsung Galaxy Note 10 Lite",
-  "Samsung Galaxy Note 10+ 5G",
-  "Samsung Galaxy Note 10+",
-  "Samsung Galaxy Note 10",
-
-  // --- GALAXY A SERIES ---
-  "Samsung Galaxy A57 5G",
-  "Samsung Galaxy A37 5G",
-  "Samsung Galaxy A27 5G",
-  "Samsung Galaxy A17 5G",
-  "Samsung Galaxy A56 5G",
-  "Samsung Galaxy A36 5G",
-  "Samsung Galaxy A26 5G",
-  "Samsung Galaxy A16 5G",
-  "Samsung Galaxy A06s",
-  "Samsung Galaxy A06",
-  "Samsung Galaxy A55 5G",
-  "Samsung Galaxy A35 5G",
-  "Samsung Galaxy A25 5G",
-  "Samsung Galaxy A15 5G",
-  "Samsung Galaxy A15 4G",
-  "Samsung Galaxy A05s",
-  "Samsung Galaxy A05",
-  "Samsung Galaxy A73 5G",
-  "Samsung Galaxy A54 5G",
-  "Samsung Galaxy A34 5G",
-  "Samsung Galaxy A24 5G",
-  "Samsung Galaxy A14 5G",
-  "Samsung Galaxy A14 4G",
-  "Samsung Galaxy A04s",
-  "Samsung Galaxy A04",
-  "Samsung Galaxy A04e",
-  "Samsung Galaxy A72",
-  "Samsung Galaxy A53 5G",
-  "Samsung Galaxy A33 5G",
-  "Samsung Galaxy A23 5G",
-  "Samsung Galaxy A23 4G",
-  "Samsung Galaxy A13 5G",
-  "Samsung Galaxy A13 4G",
-  "Samsung Galaxy A03s",
-  "Samsung Galaxy A03",
-  "Samsung Galaxy A03 Core",
-  "Samsung Galaxy A52s 5G",
-  "Samsung Galaxy A52 5G",
-  "Samsung Galaxy A52 4G",
-  "Samsung Galaxy A32 5G",
-  "Samsung Galaxy A32 4G",
-  "Samsung Galaxy A22 5G",
-  "Samsung Galaxy A22 4G",
-  "Samsung Galaxy A12 Nacho",
-  "Samsung Galaxy A12",
-  "Samsung Galaxy A02s",
-  "Samsung Galaxy A02",
-  "Samsung Galaxy A71 5G",
-  "Samsung Galaxy A71",
-  "Samsung Galaxy A51 5G",
-  "Samsung Galaxy A51",
-  "Samsung Galaxy A42 5G",
-  "Samsung Galaxy A41",
-  "Samsung Galaxy A31",
-  "Samsung Galaxy A21s",
-  "Samsung Galaxy A21",
-  "Samsung Galaxy A11",
-  "Samsung Galaxy A01 Core",
-  "Samsung Galaxy A01",
-
-  // --- GALAXY M SERIES ---
-  "Samsung Galaxy M57 5G",
-  "Samsung Galaxy M37 5G",
-  "Samsung Galaxy M17 5G",
-  "Samsung Galaxy M56 5G",
-  "Samsung Galaxy M36 5G",
-  "Samsung Galaxy M26 5G",
-  "Samsung Galaxy M16 5G",
-  "Samsung Galaxy M55 5G",
-  "Samsung Galaxy M35 5G",
-  "Samsung Galaxy M15 5G",
-  "Samsung Galaxy M54 5G",
-  "Samsung Galaxy M34 5G",
-  "Samsung Galaxy M14 5G",
-  "Samsung Galaxy M14 4G",
-  "Samsung Galaxy M53 5G",
-  "Samsung Galaxy M33 5G",
-  "Samsung Galaxy M23 5G",
-  "Samsung Galaxy M13 5G",
-  "Samsung Galaxy M62",
-  "Samsung Galaxy M52 5G",
-  "Samsung Galaxy M32 5G",
-  "Samsung Galaxy M32 4G",
-  "Samsung Galaxy M22",
-  "Samsung Galaxy M12",
-  "Samsung Galaxy M02s",
-  "Samsung Galaxy M02",
-  "Samsung Galaxy M51",
-  "Samsung Galaxy M31s",
-  "Samsung Galaxy M31",
-  "Samsung Galaxy M21s",
-  "Samsung Galaxy M21",
-  "Samsung Galaxy M11",
-  "Samsung Galaxy M01s",
-  "Samsung Galaxy M01",
-  "Samsung Galaxy M01 Core",
-
-  // --- GALAXY F SERIES ---
-  "Samsung Galaxy F54 5G",
-  "Samsung Galaxy F34 5G",
-  "Samsung Galaxy F14 5G",
-  "Samsung Galaxy F62",
-  "Samsung Galaxy F52 5G",
-  "Samsung Galaxy F42 5G",
-  "Samsung Galaxy F23 5G",
-  "Samsung Galaxy F22",
-  "Samsung Galaxy F12",
-  "Samsung Galaxy F02s",
-  "Samsung Galaxy F41"
-];
+const DEVICEMODELS_DB = [];
 
 const PARTS_DB = [
   "Tela Frontal Super AMOLED",
   "Gabinete Frontal",
   "Bateria de Fábrica",
+  "Carregador",
   "Flex Principal",
   "Sub-Placa de Conector de Carga",
   "Tampa Traseira de Vidro",
@@ -227,6 +38,10 @@ let state = {
 
 // Temporarily holds parts added to the current form request
 let formAddedParts = [];
+
+const CHARGER_PART_NAME = "Carregador";
+const CHARGER_DEFAULT_TYPE = "Tipo C";
+const CHARGER_DEFAULT_COLOR = "Preto";
 
 function escapeHtml(value) {
   return String(value)
@@ -498,6 +313,71 @@ function addOrIncrementPart(parts, partName, quantity = 1) {
   return parts;
 }
 
+function normalizePartName(partName) {
+  return partName
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function isChargerPart(partName) {
+  return normalizePartName(partName) === "carregador";
+}
+
+function getSelectedChargerType() {
+  return document.getElementById("charger-type")?.value || CHARGER_DEFAULT_TYPE;
+}
+
+function getSelectedChargerColor() {
+  return document.getElementById("charger-color")?.value || CHARGER_DEFAULT_COLOR;
+}
+
+function getConfiguredPartName(partName) {
+  const trimmedPartName = partName.trim();
+  if (!isChargerPart(trimmedPartName)) return trimmedPartName;
+  return `${CHARGER_PART_NAME} ${getSelectedChargerType()} ${getSelectedChargerColor()}`;
+}
+
+function getCurrentPartDraft() {
+  const partNameInput = document.getElementById("part-name");
+  const partQuantityInput = document.getElementById("part-quantity");
+  const rawPartName = partNameInput?.value.trim() || "";
+  if (!rawPartName) return null;
+
+  return {
+    rawName: rawPartName,
+    name: getConfiguredPartName(rawPartName),
+    quantity: parseInt(partQuantityInput?.value) || 1
+  };
+}
+
+function resetChargerOptions() {
+  const chargerType = document.getElementById("charger-type");
+  const chargerColor = document.getElementById("charger-color");
+
+  if (chargerType) chargerType.value = CHARGER_DEFAULT_TYPE;
+  if (chargerColor) chargerColor.value = CHARGER_DEFAULT_COLOR;
+  syncPartVariantControls();
+}
+
+function syncPartVariantControls() {
+  const partNameInput = document.getElementById("part-name");
+  const chargerOptions = document.getElementById("charger-options");
+  const chargerType = document.getElementById("charger-type");
+  const chargerColor = document.getElementById("charger-color");
+  if (!partNameInput || !chargerOptions) return;
+
+  const shouldShow = isChargerPart(partNameInput.value);
+  chargerOptions.hidden = !shouldShow;
+  chargerOptions.setAttribute("aria-hidden", String(!shouldShow));
+
+  [chargerType, chargerColor].forEach(select => {
+    if (!select) return;
+    select.disabled = !shouldShow;
+  });
+}
+
 function getPartQuantity(parts, partName) {
   return parts
     .filter(p => p.name.toLowerCase() === partName.toLowerCase())
@@ -510,9 +390,11 @@ function isBackCoverPart(partName) {
 
 function isTapeRequiredPart(partName) {
   const name = partName.toLowerCase();
+  const normalizedName = normalizePartName(partName);
   if (name === "conjunto de fitas") return false;
   if (isBackCoverPart(partName)) return false;
   if (name === "película" || name === "pelicula") return false;
+  if (normalizedName.startsWith("carregador")) return false;
   return true;
 }
 
@@ -572,17 +454,16 @@ function updateSummaryPreview() {
     
     // Combine both formAddedParts and any typed input in #part-name (if not empty)
     const previewParts = [...formAddedParts];
-    const currentPartName = document.getElementById("part-name").value.trim();
-    const currentQuantity = parseInt(document.getElementById("part-quantity").value) || 1;
+    const currentPart = getCurrentPartDraft();
     
-    if (currentPartName) {
-      const existingIdx = previewParts.findIndex(p => p.name.toLowerCase() === currentPartName.toLowerCase());
+    if (currentPart) {
+      const existingIdx = previewParts.findIndex(p => p.name.toLowerCase() === currentPart.name.toLowerCase());
       if (existingIdx !== -1) {
-        previewParts[existingIdx].quantity += currentQuantity;
+        previewParts[existingIdx].quantity += currentPart.quantity;
       } else {
         previewParts.push({
-          name: currentPartName,
-          quantity: currentQuantity
+          name: currentPart.name,
+          quantity: currentPart.quantity
         });
       }
     }
@@ -615,8 +496,8 @@ function updateSummaryPreview() {
 function addPartToList() {
   const partNameInput = document.getElementById("part-name");
   const partQuantityInput = document.getElementById("part-quantity");
-  
-  const partName = partNameInput.value.trim();
+  const partDraft = getCurrentPartDraft();
+  const partName = partDraft?.name || "";
   const quantity = parseInt(partQuantityInput.value);
   
   if (!partName) {
@@ -632,13 +513,14 @@ function addPartToList() {
   }
   
   addOrIncrementPart(formAddedParts, partName, quantity);
-  if (partName.toLowerCase() === "gabinete frontal") {
+  if (partDraft.rawName.toLowerCase() === "gabinete frontal") {
     addOrIncrementPart(formAddedParts, "Bateria de Fábrica", quantity);
   }
   
   // Clear inputs
   partNameInput.value = "";
   partQuantityInput.value = "1";
+  resetChargerOptions();
   partNameInput.dispatchEvent(new Event("input", { bubbles: true }));
   
   renderFormAddedParts();
@@ -726,9 +608,19 @@ function setupFormEventListeners() {
   const btnReset = document.getElementById("btn-reset-form");
   const btnCopySummary = document.getElementById("btn-copy-summary");
   const btnAddPart = document.getElementById("btn-add-part");
+  const partNameInput = document.getElementById("part-name");
 
   if (btnAddPart) {
     btnAddPart.addEventListener("click", addPartToList);
+  }
+
+  if (partNameInput) {
+    ["input", "change"].forEach(eventName => {
+      partNameInput.addEventListener(eventName, () => {
+        syncPartVariantControls();
+        updateSummaryPreview();
+      });
+    });
   }
 
   ["part-name", "part-quantity"].forEach(id => {
@@ -747,6 +639,7 @@ function setupFormEventListeners() {
   btnReset.addEventListener("click", () => {
     form.reset();
     formAddedParts = [];
+    resetChargerOptions();
     renderFormAddedParts();
     updateSummaryPreview();
     showToast("Formulário limpo", "info");
@@ -768,17 +661,16 @@ function setupFormEventListeners() {
 
     // Gather all parts
     const copyParts = [...formAddedParts];
-    const currentPartName = document.getElementById("part-name").value.trim();
-    const currentQuantity = parseInt(document.getElementById("part-quantity").value) || 1;
+    const currentPart = getCurrentPartDraft();
     
-    if (currentPartName) {
-      const existingIdx = copyParts.findIndex(p => p.name.toLowerCase() === currentPartName.toLowerCase());
+    if (currentPart) {
+      const existingIdx = copyParts.findIndex(p => p.name.toLowerCase() === currentPart.name.toLowerCase());
       if (existingIdx !== -1) {
-        copyParts[existingIdx].quantity += currentQuantity;
+        copyParts[existingIdx].quantity += currentPart.quantity;
       } else {
         copyParts.push({
-          name: currentPartName,
-          quantity: currentQuantity
+          name: currentPart.name,
+          quantity: currentPart.quantity
         });
       }
     }
@@ -808,12 +700,14 @@ function setupFormEventListeners() {
       await saveRequestFromForm();
     }
   });
+
+  syncPartVariantControls();
 }
 
 function validateForm() {
   const requester = document.getElementById("requester-name").value.trim();
   const deviceModel = document.getElementById("device-model").value.trim();
-  const partName = document.getElementById("part-name").value.trim();
+  const partName = getCurrentPartDraft()?.name || "";
   const quantity = document.getElementById("part-quantity").value;
 
   if (!requester) {
@@ -846,8 +740,7 @@ async function saveRequestFromForm() {
   const deviceModel = document.getElementById("device-model").value.trim();
   const deviceModelCode = document.getElementById("device-model-code").value.trim();
   const imei = document.getElementById("device-imei").value.trim();
-  const currentPartName = document.getElementById("part-name").value.trim();
-  const currentQuantity = parseInt(document.getElementById("part-quantity").value);
+  const currentPart = getCurrentPartDraft();
   
   const urgencyActive = document.querySelector('input[name="urgency"]:checked');
   const urgency = urgencyActive ? urgencyActive.value : "Baixa";
@@ -855,14 +748,14 @@ async function saveRequestFromForm() {
   const notes = document.getElementById("request-notes").value.trim();
   
   const partsToRequest = [...formAddedParts];
-  if (currentPartName) {
-    const existingIdx = partsToRequest.findIndex(p => p.name.toLowerCase() === currentPartName.toLowerCase());
+  if (currentPart) {
+    const existingIdx = partsToRequest.findIndex(p => p.name.toLowerCase() === currentPart.name.toLowerCase());
     if (existingIdx !== -1) {
-      partsToRequest[existingIdx].quantity += currentQuantity;
+      partsToRequest[existingIdx].quantity += currentPart.quantity;
     } else {
       partsToRequest.push({
-        name: currentPartName,
-        quantity: currentQuantity
+        name: currentPart.name,
+        quantity: currentPart.quantity
       });
     }
   }
@@ -920,6 +813,7 @@ async function saveRequestFromForm() {
   document.getElementById("device-imei").value = "";
   document.getElementById("part-name").value = "";
   document.getElementById("part-quantity").value = 1;
+  resetChargerOptions();
   document.getElementById("urgency-low").checked = true;
   document.getElementById("request-notes").value = "";
 
@@ -982,6 +876,7 @@ function setupAutocomplete() {
         b.addEventListener("click", function(e) {
           inp.value = this.dataset.value;
           closeAllLists();
+          inp.dispatchEvent(new Event("change", { bubbles: true }));
           // Trigger form update
           updateSummaryPreview();
         });
@@ -1050,7 +945,6 @@ function setupAutocomplete() {
     });
   }
 
-  autocomplete(document.getElementById("device-model"), DEVICEMODELS_DB, "device-autocomplete-list");
   autocomplete(document.getElementById("part-name"), PARTS_DB, "part-autocomplete-list");
 }
 
@@ -1081,7 +975,7 @@ function updateDashboard() {
   if (recentGroups.length === 0) {
     recentTbody.innerHTML = `
       <tr class="empty-row-placeholder">
-        <td colspan="8" class="text-center">
+        <td colspan="9" class="text-center">
           <div class="empty-state">
             <i data-lucide="clipboard-list"></i>
             <p>Nenhuma solicitação cadastrada.</p>
@@ -1122,6 +1016,7 @@ function updateDashboard() {
 
         tr.innerHTML = `
           <td rowspan="${N}" class="table-date-cell">${dateFormatted}</td>
+          <td rowspan="${N}" class="table-client-cell">${escapeHtml(group.requester)}</td>
           <td rowspan="${N}" class="table-device-cell">
             <div style="font-weight: 600;">${group.deviceModel}</div>
             ${group.deviceModelCode ? `<div class="sub-detail" style="font-size: 11px; opacity: 0.85; margin-top: 2px;">Mód: ${escapeHtml(group.deviceModelCode)}</div>` : ""}

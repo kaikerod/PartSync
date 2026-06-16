@@ -149,6 +149,7 @@
               <table class="data-table" id="recent-requests-table">
                 <colgroup>
                   <col class="col-date">
+                  <col class="col-client">
                   <col class="col-device">
                   <col class="col-part">
                   <col class="col-qty">
@@ -160,6 +161,7 @@
                 <thead>
                   <tr>
                     <th>Data/Hora</th>
+                    <th>Cliente</th>
                     <th>Aparelho</th>
                     <th>Peça</th>
                     <th>Qtd</th>
@@ -172,7 +174,7 @@
                 <tbody id="recent-requests-tbody">
                   <!-- Dynamic rows go here -->
                   <tr class="empty-row-placeholder">
-                    <td colspan="8" class="text-center">
+                    <td colspan="9" class="text-center">
                       <div class="empty-state">
                         <i data-lucide="clipboard-list"></i>
                         <p>Nenhuma solicitação cadastrada.</p>
@@ -215,10 +217,9 @@
                  <!-- Device Model -->
                 <div class="form-group col-full">
                   <label for="device-model">Modelo do Dispositivo Samsung <span class="required">*</span></label>
-                  <div class="input-with-icon autocomplete">
+                  <div class="input-with-icon">
                     <i data-lucide="smartphone"></i>
-                    <input type="text" id="device-model" required placeholder="Ex: Galaxy S25 Ultra, Galaxy Z Fold 6, Galaxy A55" aria-autocomplete="list" aria-controls="device-autocomplete-list" aria-expanded="false">
-                    <div id="device-autocomplete-list" class="autocomplete-items" role="listbox" aria-label="Sugestões de modelos Samsung" aria-hidden="true"></div>
+                    <input type="text" id="device-model" required placeholder="Ex: Galaxy S25 Ultra, Galaxy Z Fold 6, Galaxy A55">
                   </div>
                 </div>
 
@@ -250,7 +251,7 @@
                       <label for="part-name">Peça necessária</label>
                       <div class="input-with-icon autocomplete">
                         <i data-lucide="tool"></i>
-                        <input type="text" id="part-name" placeholder="Ex: Tela Frontal Super AMOLED, Bateria, Sub-Placa" aria-autocomplete="list" aria-controls="part-autocomplete-list" aria-expanded="false">
+                        <input type="text" id="part-name" placeholder="Ex: Carregador, Tela Frontal, Bateria, Sub-Placa" aria-autocomplete="list" aria-controls="part-autocomplete-list" aria-expanded="false">
                         <div id="part-autocomplete-list" class="autocomplete-items" role="listbox" aria-label="Sugestões de peças" aria-hidden="true"></div>
                       </div>
                     </div>
@@ -269,6 +270,31 @@
                       <button type="button" id="btn-add-part" class="btn btn-secondary">
                         <i data-lucide="plus-circle"></i> Adicionar à lista
                       </button>
+                    </div>
+
+                    <div id="charger-options" class="part-variant-options" hidden aria-hidden="true">
+                      <div class="form-group">
+                        <label for="charger-type">Tipo do carregador</label>
+                        <div class="input-with-icon">
+                          <i data-lucide="plug"></i>
+                          <select id="charger-type">
+                            <option value="Tipo C">Tipo C</option>
+                            <option value="Tipo B">Tipo B</option>
+                            <option value="Micro USB">Micro USB</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div class="form-group">
+                        <label for="charger-color">Cor</label>
+                        <div class="input-with-icon">
+                          <i data-lucide="palette"></i>
+                          <select id="charger-color">
+                            <option value="Preto">Preto</option>
+                            <option value="Branco">Branco</option>
+                          </select>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
