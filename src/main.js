@@ -75,8 +75,16 @@ function getLatestManualHistoryNote(request) {
   return "";
 }
 
+function getCreationNote(request) {
+  return (request.notes || "").trim();
+}
+
+function getStatusNote(request) {
+  return getLatestManualHistoryNote(request);
+}
+
 function getRequestDisplayNotes(request) {
-  return appendUniqueNote(request.notes || "", getLatestManualHistoryNote(request));
+  return appendUniqueNote(getCreationNote(request), getStatusNote(request));
 }
 
 function appendUniqueNote(currentNotes, nextNote) {
@@ -92,6 +100,64 @@ function appendUniqueNote(currentNotes, nextNote) {
   if (existingNotes.includes(cleanNote)) return notes;
 
   return notes ? `${notes}\n${cleanNote}` : cleanNote;
+}
+
+function renderNoteCell(request) {
+  const creation = getCreationNote(request);
+  const status = getStatusNote(request);
+
+  if (!creation && !status) {
+    return '<span class="table-note-empty">Sem nota</span>';
+  }
+
+  let html = "";
+  if (creation) {
+    html += `<div class="note-entry note-creation"><span class="note-label">Obs:</span> ${escapeHtml(creation)}</div>`;
+  }
+  if (status) {
+    html += `<div class="note-entry note-status"><span class="note-label">Status:</span> ${escapeHtml(status)}</div>`;
+  }
+  return html;
+}
+
+function renderGroupNoteCell(group) {
+  const creation = (group.creationNotes || "").trim();
+  const status = (group.statusNotes || "").trim();
+
+  if (!creation && !status) {
+    return '<span class="table-note-empty">Sem nota</span>';
+  }
+
+  let html = "";
+  if (creation) {
+    html += `<div class="note-entry note-creation"><span class="note-label">Obs:</span> ${escapeHtml(creation)}</div>`;
+  }
+  if (status) {
+    html += `<div class="note-entry note-status"><span class="note-label">Status:</span> ${escapeHtml(status)}</div>`;
+  }
+  return html;
+}
+
+function formatDashboardDate(value) {
+  const dateObj = new Date(value);
+  return dateObj.toLocaleDateString("pt-BR") + " " + dateObj.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+}
+
+function getUrgencyClass(urgency) {
+  const urgencyText = String(urgency || "").toLowerCase();
+  if (urgencyText === "baixa") return "low";
+  if (urgencyText.startsWith("m")) return "medium";
+  return "high";
+}
+
+function bindNewRequestShortcuts(root = document) {
+  root.querySelectorAll(".btn-new-req-shortcut").forEach(btn => {
+    if (btn.dataset.shortcutBound === "true") return;
+    btn.dataset.shortcutBound = "true";
+    btn.addEventListener("click", () => {
+      document.querySelector('.nav-item[data-target="new-request"], .mobile-nav-item[data-target="new-request"]')?.click();
+    });
+  });
 }
 
 // Initialize Application
@@ -987,6 +1053,7 @@ function updateDashboard() {
 
   // Populate Dashboard Table (Last 5 items)
   const recentTbody = document.getElementById("recent-requests-tbody");
+  const recentMobileList = document.getElementById("recent-requests-mobile-list");
   if (!recentTbody) return;
 
   const recentGroups = groupRequests(state.requests).slice(0, 5);
@@ -1003,11 +1070,25 @@ function updateDashboard() {
         </td>
       </tr>
     `;
+    if (recentMobileList) {
+      recentMobileList.innerHTML = `
+        <div class="empty-state compact-empty-state">
+          <i data-lucide="clipboard-list"></i>
+          <p>Nenhuma solicitação cadastrada.</p>
+          <button class="btn btn-secondary btn-sm btn-new-req-shortcut">Solicitar Primeira Peça</button>
+        </div>
+      `;
+      bindNewRequestShortcuts(recentMobileList);
+    }
     lucide.createIcons();
+    bindNewRequestShortcuts(recentTbody);
     return;
   }
 
   recentTbody.innerHTML = "";
+  if (recentMobileList) {
+    recentMobileList.innerHTML = renderRecentRequestCards(recentGroups);
+  }
   
   recentGroups.forEach(group => {
     const N = group.items.length;
@@ -1029,9 +1110,8 @@ function updateDashboard() {
       const statusClass = req.status.toLowerCase();
 
       if (i === 0) {
-        const dateObj = new Date(group.createdAt);
-        const dateFormatted = dateObj.toLocaleDateString("pt-BR") + " " + dateObj.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-        const urgencyClass = group.urgency.toLowerCase() === "baixa" ? "low" : group.urgency.toLowerCase() === "média" ? "medium" : "high";
+        const dateFormatted = formatDashboardDate(group.createdAt);
+        const urgencyClass = getUrgencyClass(group.urgency);
 
         tr.innerHTML = `
           <td rowspan="${N}" class="table-date-cell">${dateFormatted}</td>
@@ -1043,7 +1123,7 @@ function updateDashboard() {
           </td>
           <td class="table-part-cell">${req.partName}</td>
           <td class="table-qty-cell">${req.quantity}</td>
-          <td rowspan="${N}" class="table-note-cell">${group.notes ? escapeHtml(group.notes.trim()) : '<span class="table-note-empty">Sem nota</span>'}</td>
+          <td rowspan="${N}" class="table-note-cell">${renderGroupNoteCell(group)}</td>
           <td rowspan="${N}">
             <span class="urgency-badge">
               <span class="urgency-dot ${urgencyClass}"></span>
@@ -1077,10 +1157,12 @@ function updateDashboard() {
     });
   });
 
-  // Setup table action button
-  recentTbody.querySelectorAll(".btn-status-shortcut").forEach(btn => {
-    btn.addEventListener("click", () => {
-      openStatusModal(btn.getAttribute("data-id"));
+  // Setup dashboard action buttons
+  [recentTbody, recentMobileList].filter(Boolean).forEach(root => {
+    root.querySelectorAll(".btn-status-shortcut").forEach(btn => {
+      btn.addEventListener("click", () => {
+        openStatusModal(btn.getAttribute("data-id"));
+      });
     });
   });
 
@@ -1102,6 +1184,66 @@ function updateDashboard() {
   });
 
   lucide.createIcons();
+}
+
+function renderRecentRequestCards(groups) {
+  return groups.map(group => {
+    const urgencyClass = getUrgencyClass(group.urgency);
+    const deviceDetails = [
+      group.deviceModelCode ? `Mod: ${escapeHtml(group.deviceModelCode)}` : "",
+      group.imei ? `IMEI: ${escapeHtml(group.imei)}` : ""
+    ].filter(Boolean).join(" | ");
+    const creationNotes = (group.creationNotes || "").trim();
+    const statusNotes = (group.statusNotes || "").trim();
+    const parts = group.items.map(req => {
+      const statusClass = req.status.toLowerCase();
+      return `
+        <li class="recent-request-part">
+          <div class="recent-part-main">
+            <span class="recent-part-name">${escapeHtml(req.partName)}</span>
+            <span class="recent-part-qty">Qtd ${escapeHtml(req.quantity)}</span>
+          </div>
+          <div class="recent-part-meta">
+            <span class="badge ${statusClass}">${escapeHtml(req.status)}</span>
+            <button class="btn btn-secondary btn-icon-only btn-status-shortcut" data-id="${escapeHtml(req.id)}" title="Alterar Status" aria-label="Alterar status de ${escapeHtml(req.partName)}">
+              <i data-lucide="edit-3"></i>
+            </button>
+          </div>
+        </li>
+      `;
+    }).join("");
+
+    return `
+      <article class="recent-request-card">
+        <div class="recent-request-top">
+          <div class="recent-request-heading">
+            <span class="recent-request-client">${escapeHtml(group.requester)}</span>
+            <span class="recent-request-date">${formatDashboardDate(group.createdAt)}</span>
+          </div>
+          <span class="urgency-badge">
+            <span class="urgency-dot ${urgencyClass}"></span>
+            <span>${escapeHtml(group.urgency)}</span>
+          </span>
+        </div>
+
+        <div class="recent-request-device">
+          <span class="recent-request-device-name">${escapeHtml(group.deviceModel)}</span>
+          ${deviceDetails ? `<span class="recent-request-device-details">${deviceDetails}</span>` : ""}
+        </div>
+
+        ${creationNotes || statusNotes ? `
+          <div class="recent-request-notes">
+            ${creationNotes ? `<p class="recent-request-note"><span class="note-label">Obs:</span> ${escapeHtml(creationNotes)}</p>` : ""}
+            ${statusNotes ? `<p class="recent-request-note note-status"><span class="note-label">Status:</span> ${escapeHtml(statusNotes)}</p>` : ""}
+          </div>
+        ` : ""}
+
+        <ul class="recent-request-parts">
+          ${parts}
+        </ul>
+      </article>
+    `;
+  }).join("");
 }
 
 function getFilteredRequests() {
@@ -1200,14 +1342,16 @@ function groupRequests(requestsList) {
         deviceModelCode: req.deviceModelCode || "",
         imei: req.imei || "",
         urgency: req.urgency,
-        notes: "",
+        creationNotes: "",
+        statusNotes: "",
         items: []
       };
       groupMap.set(key, group);
       groups.push(group);
     }
     const group = groupMap.get(key);
-    group.notes = appendUniqueNote(group.notes, getRequestDisplayNotes(req));
+    group.creationNotes = appendUniqueNote(group.creationNotes, getCreationNote(req));
+    group.statusNotes = appendUniqueNote(group.statusNotes, getStatusNote(req));
     group.items.push(req);
   });
 
@@ -1344,7 +1488,7 @@ function renderHistoryTable() {
             deviceModelCode: group.deviceModelCode,
             imei: group.imei,
             urgency: group.urgency,
-            notes: group.notes,
+            notes: [group.creationNotes, group.statusNotes].filter(Boolean).join("\n"),
             parts: parts
           });
           
@@ -1439,6 +1583,8 @@ function openStatusModal(id) {
   
   const createdDate = new Date(req.createdAt).toLocaleDateString("pt-BR") + " " + new Date(req.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   
+  const creationNote = getCreationNote(req);
+
   document.getElementById("modal-req-summary").innerHTML = `
     <strong>Dispositivo:</strong> ${req.deviceModel} <br>
     ${req.deviceModelCode ? `<strong>Modelo Específico:</strong> ${req.deviceModelCode} <br>` : ""}
@@ -1446,10 +1592,11 @@ function openStatusModal(id) {
     <strong>Peça:</strong> ${req.partName} (Qtd: ${req.quantity}) <br>
     <strong>Cliente:</strong> ${req.requester} em ${createdDate} <br>
     <strong>Status Atual:</strong> ${req.status}
+    ${creationNote ? `<br><strong>Obs. de Criação:</strong> <span style="color: var(--text-secondary);">${escapeHtml(creationNote)}</span>` : ""}
   `;
 
   document.getElementById("modal-status-select").value = req.status;
-  document.getElementById("modal-notes-append").value = getLatestManualHistoryNote(req);
+  document.getElementById("modal-notes-append").value = getStatusNote(req);
 
   modal.classList.add("active");
 
@@ -1630,7 +1777,7 @@ function downloadCSV(requests, filenamePrefix = "partsync_solicitacoes") {
   }
 
   // CSV Headers
-  const headers = ["ID", "Data/Hora", "Cliente", "Aparelho", "Modelo Específico", "IMEI", "Peça", "Quantidade", "Urgência", "Status", "Observações"];
+  const headers = ["ID", "Data/Hora", "Cliente", "Aparelho", "Modelo Específico", "IMEI", "Peça", "Quantidade", "Urgência", "Status", "Obs. de Criação", "Nota de Status"];
   
   // Convert to CSV lines
   const csvRows = [];
@@ -1640,7 +1787,8 @@ function downloadCSV(requests, filenamePrefix = "partsync_solicitacoes") {
     const dateObj = new Date(req.createdAt);
     const dateFormatted = dateObj.toLocaleDateString("pt-BR") + " " + dateObj.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
     
-    const notesClean = getRequestDisplayNotes(req).replace(/\r?\n|\r/g, " "); // remove newlines to keep CSV row valid
+    const creationClean = getCreationNote(req).replace(/\r?\n|\r/g, " ");
+    const statusClean = getStatusNote(req).replace(/\r?\n|\r/g, " ");
 
     const values = [
       req.id,
@@ -1653,7 +1801,8 @@ function downloadCSV(requests, filenamePrefix = "partsync_solicitacoes") {
       req.quantity,
       req.urgency,
       req.status,
-      notesClean
+      creationClean,
+      statusClean
     ];
 
     // Escape double quotes and wrap values in quotes
