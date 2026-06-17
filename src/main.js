@@ -6,7 +6,7 @@ import { api } from "./api.js";
 const DEVICEMODELS_DB = [];
 
 const PARTS_DB = [
-  "Tela Frontal Super AMOLED",
+  "Display UB",
   "Gabinete Frontal",
   "Bateria de Fábrica",
   "Carregador",
@@ -22,8 +22,6 @@ const PARTS_DB = [
   "Lente de Vidro da Câmera",
   "Aro Lateral / Chassi",
   "Gaveta de Chip SIM",
-  "Conector FPC de Bateria / Tela",
-  "CI de Carga / Regulador de Energia",
   "Película",
   "Conjunto de Fitas"
 ];
@@ -50,6 +48,50 @@ function escapeHtml(value) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+const AUTOMATIC_HISTORY_NOTES = [
+  "Solicitação registrada no sistema",
+  "Status alterado para ",
+  "Atualização em lote para status "
+];
+
+function isAutomaticHistoryNote(note) {
+  return AUTOMATIC_HISTORY_NOTES.some(automaticNote =>
+    note === automaticNote || note.startsWith(automaticNote)
+  );
+}
+
+function getLatestManualHistoryNote(request) {
+  const logs = Array.isArray(request.logs) ? request.logs : [];
+
+  for (let index = logs.length - 1; index >= 0; index--) {
+    const note = typeof logs[index]?.notes === "string" ? logs[index].notes.trim() : "";
+    if (note && !isAutomaticHistoryNote(note)) {
+      return note;
+    }
+  }
+
+  return "";
+}
+
+function getRequestDisplayNotes(request) {
+  return appendUniqueNote(request.notes || "", getLatestManualHistoryNote(request));
+}
+
+function appendUniqueNote(currentNotes, nextNote) {
+  const cleanNote = typeof nextNote === "string" ? nextNote.trim() : "";
+  if (!cleanNote) return currentNotes || "";
+
+  const notes = currentNotes || "";
+  const existingNotes = notes
+    .split(/\r?\n/)
+    .map(note => note.trim())
+    .filter(Boolean);
+
+  if (existingNotes.includes(cleanNote)) return notes;
+
+  return notes ? `${notes}\n${cleanNote}` : cleanNote;
 }
 
 // Initialize Application
@@ -1078,7 +1120,7 @@ function getFilteredRequests() {
       (req.imei && req.imei.toLowerCase().includes(searchQuery)) ||
       req.partName.toLowerCase().includes(searchQuery) ||
       req.requester.toLowerCase().includes(searchQuery) ||
-      (req.notes && req.notes.toLowerCase().includes(searchQuery));
+      getRequestDisplayNotes(req).toLowerCase().includes(searchQuery);
 
     // Status filter
     const matchesStatus = statusFilter === "todos" || req.status === statusFilter;
@@ -1158,13 +1200,15 @@ function groupRequests(requestsList) {
         deviceModelCode: req.deviceModelCode || "",
         imei: req.imei || "",
         urgency: req.urgency,
-        notes: req.notes,
+        notes: "",
         items: []
       };
       groupMap.set(key, group);
       groups.push(group);
     }
-    groupMap.get(key).items.push(req);
+    const group = groupMap.get(key);
+    group.notes = appendUniqueNote(group.notes, getRequestDisplayNotes(req));
+    group.items.push(req);
   });
 
   return groups;
@@ -1313,7 +1357,11 @@ function renderHistoryTable() {
         if (req) {
           const formattedDate = new Date(req.createdAt).toLocaleDateString("pt-BR") + " " + 
                                 new Date(req.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-          const text = generateSummaryText({ ...req, date: formattedDate });
+          const text = generateSummaryText({
+            ...req,
+            date: formattedDate,
+            notes: getRequestDisplayNotes(req)
+          });
           navigator.clipboard.writeText(text)
             .then(() => showToast("Ficha técnica copiada!"))
             .catch(() => showToast("Erro ao copiar.", "error"));
@@ -1401,7 +1449,7 @@ function openStatusModal(id) {
   `;
 
   document.getElementById("modal-status-select").value = req.status;
-  document.getElementById("modal-notes-append").value = "";
+  document.getElementById("modal-notes-append").value = getLatestManualHistoryNote(req);
 
   modal.classList.add("active");
 
@@ -1592,7 +1640,7 @@ function downloadCSV(requests, filenamePrefix = "partsync_solicitacoes") {
     const dateObj = new Date(req.createdAt);
     const dateFormatted = dateObj.toLocaleDateString("pt-BR") + " " + dateObj.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
     
-    const notesClean = req.notes ? req.notes.replace(/\r?\n|\r/g, " ") : ""; // remove newlines to keep CSV row valid
+    const notesClean = getRequestDisplayNotes(req).replace(/\r?\n|\r/g, " "); // remove newlines to keep CSV row valid
 
     const values = [
       req.id,
