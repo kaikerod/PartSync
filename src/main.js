@@ -384,34 +384,11 @@ function getPartQuantity(parts, partName) {
     .reduce((sum, part) => sum + (parseInt(part.quantity) || 0), 0);
 }
 
-function isBackCoverPart(partName) {
-  return partName.toLowerCase().includes("tampa traseira");
-}
-
-function isTapeRequiredPart(partName) {
-  const name = partName.toLowerCase();
-  const normalizedName = normalizePartName(partName);
-  if (name === "conjunto de fitas") return false;
-  if (isBackCoverPart(partName)) return false;
-  if (name === "película" || name === "pelicula") return false;
-  if (normalizedName.startsWith("carregador")) return false;
-  return true;
-}
-
-// Automatically ensures companion parts are included when needed
+// Automatically ensures the front cabinet companion battery is included when needed
 function ensureRelatedParts(parts) {
-  const hasTapeRequiredPart = parts.some(p => isTapeRequiredPart(p.name));
-  const hasTapeSet = parts.some(p => p.name.toLowerCase() === "conjunto de fitas");
   const hasFrontCabinet = parts.some(p => p.name.toLowerCase() === "gabinete frontal");
   const hasBattery = parts.some(p => p.name.toLowerCase() === "bateria de fábrica");
   const frontCabinetQuantity = getPartQuantity(parts, "Gabinete Frontal");
-
-  if (hasTapeRequiredPart && !hasTapeSet) {
-    parts.push({
-      name: "Conjunto de Fitas",
-      quantity: 1
-    });
-  }
 
   if (hasFrontCabinet && !hasBattery) {
     parts.push({
