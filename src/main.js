@@ -29,9 +29,18 @@ const PARTS_DB = [
 // App State
 let state = {
   requests: [],
+  appointments: [],
   settings: {
-    defaultRequester: ""
+    defaultRequester: "",
+    technicians: ["Técnico 1", "Técnico 2"]
   }
+};
+
+let calendarState = {
+  selectedDate: new Date().toISOString().split("T")[0],
+  currentView: "daily",
+  selectedTechnician: "all",
+  sidebarCollapsed: false
 };
 
 // Temporarily holds parts added to the current form request
@@ -175,6 +184,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   setupHistoryFilters();
   setupSettingsEventListeners();
   setupModals();
+  setupCalendarEventListeners();
+  setupAppointmentModals();
   updateDashboard();
 
   // Initialize Lucide Icons
@@ -186,13 +197,22 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 // Load data from SQLite API
 async function loadData() {
-  const [requests, settings] = await Promise.all([
+  const [requests, settings, appointments] = await Promise.all([
     api.getRequests(),
-    api.getSettings()
+    api.getSettings(),
+    api.getAppointments().catch(() => [])
   ]);
 
   state.requests = Array.isArray(requests) ? requests : [];
-  state.settings = { ...state.settings, ...settings };
+  state.settings = {
+    technicians: ["Técnico 1", "Técnico 2"],
+    ...state.settings,
+    ...settings
+  };
+  if (!Array.isArray(state.settings.technicians) || state.settings.technicians.length === 0) {
+    state.settings.technicians = ["Técnico 1", "Técnico 2"];
+  }
+  state.appointments = Array.isArray(appointments) ? appointments : [];
 
   await migrateLocalStorageData();
 }
@@ -250,6 +270,7 @@ function setupRouter() {
   const navItems = document.querySelectorAll(".nav-item, .mobile-nav-item, .view-all-link, .btn-new-req-shortcut");
 
   function resolveRouteTarget(target) {
+    if (target === "calendario") return "calendar";
     if (target === "nova-solicitacao") return "new-request";
     if (target === "historico") return "history";
     if (target === "configuracoes") return "settings";
@@ -290,6 +311,11 @@ function setupRouter() {
       renderHistoryTable();
     } else if (targetId === "dashboard") {
       updateDashboard();
+    } else if (targetId === "calendar") {
+      renderCalendar();
+      renderPendingArrivedParts();
+    } else if (targetId === "settings") {
+      renderTechniciansManager();
     } else if (targetId === "new-request") {
       updateSummaryPreview();
       // Auto-set date in summary paper
@@ -1045,6 +1071,19 @@ function updateDashboard() {
   document.getElementById("kpi-ordered").textContent = ordered;
   document.getElementById("kpi-received").textContent = received;
 
+  const todayStr = getLocalDateString(new Date());
+  const repairsToday = (state.appointments || []).filter(
+    a => a.scheduledDate === todayStr && a.status !== "Cancelado"
+  );
+  const repairsPendingToday = repairsToday.filter(
+    a => a.status === "Agendado" || a.status === "Em Reparo"
+  ).length;
+
+  const kpiRepairsToday = document.getElementById("kpi-repairs-today");
+  const kpiRepairsTodayPending = document.getElementById("kpi-repairs-today-pending");
+  if (kpiRepairsToday) kpiRepairsToday.textContent = repairsToday.length;
+  if (kpiRepairsTodayPending) kpiRepairsTodayPending.textContent = repairsPendingToday;
+
   const pctPendingEl = document.getElementById("pct-pending");
   if (pctPendingEl) {
     const pct = total > 0 ? Math.round((pending / total) * 100) : 0;
@@ -1426,6 +1465,11 @@ function renderHistoryTable() {
           <td><span class="badge ${statusClass}">${req.status}</span></td>
           <td>
             <div class="actions-cell">
+              ${req.status === "Entregue" ? `
+                <button class="btn btn-secondary btn-icon-only btn-schedule-shortcut" data-id="${req.id}" title="Agendar Reparo no Calendário" style="color: #06b6d4;">
+                  <i data-lucide="calendar-plus"></i>
+                </button>
+              ` : ""}
               <button class="btn btn-secondary btn-icon-only btn-status-shortcut" data-id="${req.id}" title="Alterar Status">
                 <i data-lucide="edit-3"></i>
               </button>
@@ -1445,6 +1489,11 @@ function renderHistoryTable() {
           <td><span class="badge ${statusClass}">${req.status}</span></td>
           <td>
             <div class="actions-cell">
+              ${req.status === "Entregue" ? `
+                <button class="btn btn-secondary btn-icon-only btn-schedule-shortcut" data-id="${req.id}" title="Agendar Reparo no Calendário" style="color: #06b6d4;">
+                  <i data-lucide="calendar-plus"></i>
+                </button>
+              ` : ""}
               <button class="btn btn-secondary btn-icon-only btn-status-shortcut" data-id="${req.id}" title="Alterar Status">
                 <i data-lucide="edit-3"></i>
               </button>
@@ -1460,6 +1509,15 @@ function renderHistoryTable() {
   });
 
   // Hook actions
+  tbody.querySelectorAll(".btn-schedule-shortcut").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const reqId = btn.getAttribute("data-id");
+      const calNav = document.querySelector('.nav-item[data-target="calendar"], .mobile-nav-item[data-target="calendar"]');
+      if (calNav) calNav.click();
+      openNewAppointmentModal({ requestId: reqId });
+    });
+  });
+
   tbody.querySelectorAll(".btn-status-shortcut").forEach(btn => {
     btn.addEventListener("click", () => {
       openStatusModal(btn.getAttribute("data-id"));
@@ -1729,7 +1787,40 @@ async function saveBulkStatusChange() {
 }
 
 // Settings Panel Logic
+// Settings Panel Logic
 function setupSettingsEventListeners() {
+  renderTechniciansManager();
+
+  const btnAddTech = document.getElementById("btn-add-technician");
+  if (btnAddTech) {
+    btnAddTech.addEventListener("click", async () => {
+      const input = document.getElementById("new-technician-name");
+      const name = input ? input.value.trim() : "";
+      if (!name) {
+        showToast("Digite o nome do técnico.", "warning");
+        return;
+      }
+      if (!Array.isArray(state.settings.technicians)) {
+        state.settings.technicians = [];
+      }
+      if (state.settings.technicians.includes(name)) {
+        showToast("Este técnico já está cadastrado.", "warning");
+        return;
+      }
+      state.settings.technicians.push(name);
+      try {
+        await api.saveSettings(state.settings);
+        input.value = "";
+        renderTechniciansManager();
+        renderCalendar();
+        showToast(`Técnico "${name}" adicionado com sucesso!`);
+      } catch (err) {
+        console.error(err);
+        showToast("Erro ao salvar configurações.", "error");
+      }
+    });
+  }
+
   // Backup: Export CSV
   document.getElementById("btn-export-data").addEventListener("click", () => {
     downloadCSV(state.requests, "partsync_solicitacoes_backup");
@@ -1750,14 +1841,18 @@ function setupSettingsEventListeners() {
         }
 
         state.requests = [];
+        state.appointments = [];
         state.settings = {
-          defaultRequester: ""
+          defaultRequester: "",
+          technicians: ["Técnico 1", "Técnico 2"]
         };
         
         document.getElementById("requester-name").value = "";
         
         updateDashboard();
         renderHistoryTable();
+        renderCalendar();
+        renderPendingArrivedParts();
         showToast("Aplicativo redefinido para o estado original.", "info");
         
         setTimeout(() => {
@@ -1766,6 +1861,40 @@ function setupSettingsEventListeners() {
         }, 1000);
       }
     }
+  });
+}
+
+function renderTechniciansManager() {
+  const container = document.getElementById("technicians-chips-list");
+  if (!container) return;
+
+  const techs = Array.isArray(state.settings.technicians) ? state.settings.technicians : [];
+  if (techs.length === 0) {
+    container.innerHTML = '<span class="text-muted" style="font-size: 0.85rem;">Nenhum técnico cadastrado.</span>';
+    return;
+  }
+
+  container.innerHTML = techs.map((tech, idx) => `
+    <div class="tech-chip">
+      <span>${escapeHtml(tech)}</span>
+      <button type="button" class="tech-chip-remove" data-index="${idx}" title="Remover ${escapeHtml(tech)}">&times;</button>
+    </div>
+  `).join("");
+
+  container.querySelectorAll(".tech-chip-remove").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const idx = Number(btn.getAttribute("data-index"));
+      const removed = state.settings.technicians.splice(idx, 1)[0];
+      try {
+        await api.saveSettings(state.settings);
+        renderTechniciansManager();
+        renderCalendar();
+        showToast(`Técnico "${removed}" removido.`);
+      } catch (err) {
+        console.error(err);
+        showToast("Erro ao remover técnico.", "error");
+      }
+    });
   });
 }
 
@@ -1832,3 +1961,911 @@ function downloadCSV(requests, filenamePrefix = "partsync_solicitacoes") {
   
   showToast("Relatório CSV baixado com sucesso!");
 }
+
+/* ==========================================================================
+   CALENDAR & REPAIR SCHEDULING LOGIC
+   ========================================================================== */
+
+function getLocalDateString(date) {
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function formatDateDisplayPt(isoDate) {
+  if (!isoDate) return "";
+  const [year, month, day] = isoDate.split("-").map(Number);
+  const d = new Date(year, month - 1, day);
+  const weekday = d.toLocaleDateString("pt-BR", { weekday: "long" });
+  const capitalizedWeekday = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+  const monthName = d.toLocaleDateString("pt-BR", { month: "long" });
+  return `${capitalizedWeekday}, ${day} de ${monthName} de ${year}`;
+}
+
+function calculateEndTime(startTime, durationMinutes) {
+  const parts = String(startTime || "08:00").split(":");
+  const hours = Number(parts[0]) || 0;
+  const minutes = Number(parts[1]) || 0;
+  const totalMinutes = hours * 60 + minutes + (Number(durationMinutes) || 60);
+  const endHours = Math.floor(totalMinutes / 60);
+  const endMinutes = totalMinutes % 60;
+  return `${String(endHours).padStart(2, "0")}:${String(endMinutes).padStart(2, "0")}`;
+}
+
+function checkAppointmentConflict(candidate, excludeId = null) {
+  const { scheduledDate, technician, startTime, endTime } = candidate;
+  return (state.appointments || []).find(a => {
+    if (a.id === excludeId) return false;
+    if (a.status === "Cancelado") return false;
+    if (a.scheduledDate !== scheduledDate) return false;
+    if (a.technician !== technician) return false;
+
+    // Overlap condition
+    return a.startTime < endTime && a.endTime > startTime;
+  });
+}
+
+function renderPendingArrivedParts() {
+  const listEl = document.getElementById("pending-repairs-list");
+  const badgeEl = document.getElementById("pending-repairs-badge");
+  if (!listEl) return;
+
+  const delivered = state.requests.filter(r => r.status === "Entregue");
+  const unscheduled = delivered.filter(r => {
+    return !state.appointments.some(a => a.requestId === r.id && a.status !== "Cancelado");
+  });
+
+  if (badgeEl) badgeEl.textContent = unscheduled.length;
+
+  if (unscheduled.length === 0) {
+    listEl.innerHTML = `
+      <div class="pending-empty-state">
+        <i data-lucide="check-circle-2" style="width: 24px; height: 24px; margin-bottom: 6px; color: var(--status-received);"></i>
+        <p>Nenhuma peça entregue pendente de agendamento.</p>
+      </div>
+    `;
+    lucide.createIcons();
+    return;
+  }
+
+  listEl.innerHTML = unscheduled.map(req => `
+    <div class="pending-repair-card">
+      <div class="pending-repair-top">
+        <span class="pending-repair-client">${escapeHtml(req.requester)}</span>
+        <span class="badge received">Chegou</span>
+      </div>
+      <div class="pending-repair-part">${escapeHtml(req.partName)} (x${req.quantity})</div>
+      <div class="pending-repair-meta">
+        <span>${escapeHtml(req.deviceModel)}</span>
+        ${req.orderId ? `<span>O.S. #${escapeHtml(req.orderId)}</span>` : ""}
+      </div>
+      <button type="button" class="btn-schedule-item btn-schedule-part-direct" data-req-id="${escapeHtml(req.id)}">
+        <i data-lucide="calendar-plus"></i> Agendar Reparo
+      </button>
+    </div>
+  `).join("");
+
+  listEl.querySelectorAll(".btn-schedule-part-direct").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const reqId = btn.getAttribute("data-req-id");
+      openNewAppointmentModal({ requestId: reqId });
+    });
+  });
+
+  lucide.createIcons();
+}
+
+function renderCalendar() {
+  const dateLabel = document.getElementById("calendar-current-date-label");
+  if (dateLabel) {
+    dateLabel.textContent = formatDateDisplayPt(calendarState.selectedDate);
+  }
+
+  const dateInput = document.getElementById("calendar-date-input");
+  if (dateInput) {
+    dateInput.value = calendarState.selectedDate;
+  }
+
+  // Technician Filter
+  const techFilter = document.getElementById("calendar-tech-filter");
+  if (techFilter) {
+    const techs = Array.isArray(state.settings.technicians) && state.settings.technicians.length > 0
+      ? state.settings.technicians
+      : ["Técnico 1", "Técnico 2"];
+
+    techFilter.innerHTML = `<option value="all">Todos os Técnicos</option>` +
+      techs.map(t => `<option value="${escapeHtml(t)}" ${calendarState.selectedTechnician === t ? "selected" : ""}>${escapeHtml(t)}</option>`).join("");
+  }
+
+  // View toggle buttons
+  const btnDaily = document.getElementById("btn-view-daily");
+  const btnWeekly = document.getElementById("btn-view-weekly");
+  if (btnDaily && btnWeekly) {
+    if (calendarState.currentView === "daily") {
+      btnDaily.classList.add("active");
+      btnWeekly.classList.remove("active");
+    } else {
+      btnDaily.classList.remove("active");
+      btnWeekly.classList.add("active");
+    }
+  }
+
+  if (calendarState.currentView === "daily") {
+    renderDailyCalendar();
+  } else {
+    renderWeeklyCalendar();
+  }
+}
+
+function getAppointmentStatusSlug(status) {
+  return String(status || "Agendado")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, "-");
+}
+
+function renderDailyCalendar() {
+  const boardEl = document.getElementById("calendar-board");
+  if (!boardEl) return;
+
+  const techs = Array.isArray(state.settings.technicians) && state.settings.technicians.length > 0
+    ? state.settings.technicians
+    : ["Técnico 1", "Técnico 2"];
+
+  const techsToShow = calendarState.selectedTechnician === "all"
+    ? techs
+    : techs.filter(t => t === calendarState.selectedTechnician);
+
+  if (techsToShow.length === 0 && techs.length > 0) {
+    techsToShow.push(techs[0]);
+  }
+
+  // 20 time slots (08:00 to 17:30, ending at 18:00)
+  const timeSlots = [];
+  for (let hour = 8; hour < 18; hour++) {
+    timeSlots.push(`${String(hour).padStart(2, "0")}:00`);
+    timeSlots.push(`${String(hour).padStart(2, "0")}:30`);
+  }
+
+  // Header row
+  let headerHtml = `
+    <div class="board-header-row">
+      <div class="board-time-header">Horário</div>
+  `;
+
+  techsToShow.forEach(tech => {
+    const techAppsToday = (state.appointments || []).filter(
+      a => a.scheduledDate === calendarState.selectedDate && a.technician === tech && a.status !== "Cancelado"
+    );
+    const initials = tech.split(" ").map(w => w[0]).join("").substring(0, 2).toUpperCase() || "T";
+    headerHtml += `
+      <div class="board-col-header">
+        <div class="tech-header-info">
+          <div class="tech-avatar">${escapeHtml(initials)}</div>
+          <span class="tech-name">${escapeHtml(tech)}</span>
+        </div>
+        <span class="tech-count-badge">${techAppsToday.length} reparo${techAppsToday.length === 1 ? "" : "s"}</span>
+      </div>
+    `;
+  });
+  headerHtml += `</div>`;
+
+  // Body row
+  let bodyHtml = `<div class="board-body">`;
+
+  // Time Ruler Column
+  bodyHtml += `<div class="time-ruler-col">`;
+  timeSlots.forEach(slot => {
+    const isHour = slot.endsWith(":00");
+    bodyHtml += `
+      <div class="time-slot-label ${isHour ? "hour-mark" : ""}">
+        ${isHour ? slot : ""}
+      </div>
+    `;
+  });
+  bodyHtml += `</div>`;
+
+  // Columns for each technician
+  techsToShow.forEach(tech => {
+    bodyHtml += `<div class="tech-schedule-col" data-technician="${escapeHtml(tech)}">`;
+
+    // Clickable grid slots
+    timeSlots.forEach(slot => {
+      const isHour = slot.endsWith(":00");
+      bodyHtml += `
+        <div class="grid-slot ${isHour ? "hour-mark" : ""}" data-time="${slot}" data-technician="${escapeHtml(tech)}" title="Clique para agendar às ${slot} com ${escapeHtml(tech)}"></div>
+      `;
+    });
+
+    // Appointment cards for this technician
+    const techApps = (state.appointments || []).filter(
+      a => a.scheduledDate === calendarState.selectedDate && a.technician === tech
+    );
+
+    techApps.forEach(app => {
+      const [startH, startM] = app.startTime.split(":").map(Number);
+      const minutesFrom8 = (startH - 8) * 60 + startM;
+      if (minutesFrom8 < 0 || minutesFrom8 >= 600) return;
+
+      const topPx = (minutesFrom8 / 30) * 44;
+      const durationMin = Number(app.durationMinutes) || 60;
+      const heightPx = Math.max((durationMin / 30) * 44 - 4, 38);
+
+      const statusSlug = getAppointmentStatusSlug(app.status);
+      const statusBadgeClass = `badge-${statusSlug}`;
+
+      bodyHtml += `
+        <div class="appointment-card app-status-${statusSlug}"
+             style="top: ${topPx}px; height: ${heightPx}px;"
+             data-app-id="${escapeHtml(app.id)}"
+             title="${escapeHtml(app.clientName)} - ${escapeHtml(app.deviceModel)} (${escapeHtml(app.partName)})">
+          <div class="app-card-time">
+            <i data-lucide="clock" style="width: 12px; height: 12px;"></i>
+            <span>${escapeHtml(app.startTime)} - ${escapeHtml(app.endTime)}</span>
+          </div>
+          <div class="app-card-client">${escapeHtml(app.clientName)}</div>
+          <div class="app-card-device">${escapeHtml(app.deviceModel)}</div>
+          <div class="app-card-part">${escapeHtml(app.partName)}</div>
+          <span class="app-card-badge ${statusBadgeClass}">${escapeHtml(app.status)}</span>
+        </div>
+      `;
+    });
+
+    bodyHtml += `</div>`;
+  });
+
+  bodyHtml += `</div>`;
+
+  boardEl.innerHTML = headerHtml + bodyHtml;
+
+  // Listeners for empty slot clicks
+  boardEl.querySelectorAll(".grid-slot").forEach(slot => {
+    slot.addEventListener("click", () => {
+      const time = slot.getAttribute("data-time");
+      const tech = slot.getAttribute("data-technician");
+      openNewAppointmentModal({
+        scheduledDate: calendarState.selectedDate,
+        startTime: time,
+        technician: tech
+      });
+    });
+  });
+
+  // Listeners for card clicks
+  boardEl.querySelectorAll(".appointment-card").forEach(card => {
+    card.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const appId = card.getAttribute("data-app-id");
+      const app = state.appointments.find(a => a.id === appId);
+      if (app) openAppointmentDetailsModal(app);
+    });
+  });
+
+  lucide.createIcons();
+}
+
+function renderWeeklyCalendar() {
+  const boardEl = document.getElementById("calendar-board");
+  if (!boardEl) return;
+
+  const [year, month, day] = calendarState.selectedDate.split("-").map(Number);
+  const curr = new Date(year, month - 1, day);
+  const dayOfWeek = curr.getDay();
+  const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const monday = new Date(curr);
+  monday.setDate(curr.getDate() + diffToMonday);
+
+  const weekDays = [];
+  const dayNames = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    const dateStr = getLocalDateString(d);
+    weekDays.push({
+      dateStr,
+      dayNumber: d.getDate(),
+      dayName: dayNames[i],
+      isToday: dateStr === getLocalDateString(new Date())
+    });
+  }
+
+  const timeSlots = [];
+  for (let hour = 8; hour < 18; hour++) {
+    timeSlots.push(`${String(hour).padStart(2, "0")}:00`);
+    timeSlots.push(`${String(hour).padStart(2, "0")}:30`);
+  }
+
+  let headerHtml = `
+    <div class="board-header-row">
+      <div class="board-time-header">Horário</div>
+  `;
+
+  weekDays.forEach(w => {
+    headerHtml += `
+      <div class="board-col-header weekly-col-header ${w.isToday ? "is-today" : ""}">
+        <span class="weekly-day-name">${w.dayName}</span>
+        <span class="weekly-day-number">${w.dayNumber}</span>
+      </div>
+    `;
+  });
+  headerHtml += `</div>`;
+
+  let bodyHtml = `<div class="board-body">`;
+
+  // Time ruler
+  bodyHtml += `<div class="time-ruler-col">`;
+  timeSlots.forEach(slot => {
+    const isHour = slot.endsWith(":00");
+    bodyHtml += `<div class="time-slot-label ${isHour ? "hour-mark" : ""}">${isHour ? slot : ""}</div>`;
+  });
+  bodyHtml += `</div>`;
+
+  // Days columns
+  weekDays.forEach(w => {
+    bodyHtml += `<div class="tech-schedule-col" data-date="${w.dateStr}">`;
+
+    timeSlots.forEach(slot => {
+      const isHour = slot.endsWith(":00");
+      bodyHtml += `
+        <div class="grid-slot ${isHour ? "hour-mark" : ""}" data-time="${slot}" data-date="${w.dateStr}" title="Clique para agendar em ${w.dateStr} às ${slot}"></div>
+      `;
+    });
+
+    const dayApps = (state.appointments || []).filter(a => {
+      if (a.scheduledDate !== w.dateStr) return false;
+      if (calendarState.selectedTechnician !== "all" && a.technician !== calendarState.selectedTechnician) return false;
+      return true;
+    });
+
+    dayApps.forEach(app => {
+      const [startH, startM] = app.startTime.split(":").map(Number);
+      const minutesFrom8 = (startH - 8) * 60 + startM;
+      if (minutesFrom8 < 0 || minutesFrom8 >= 600) return;
+
+      const topPx = (minutesFrom8 / 30) * 44;
+      const durationMin = Number(app.durationMinutes) || 60;
+      const heightPx = Math.max((durationMin / 30) * 44 - 4, 38);
+
+      const statusSlug = getAppointmentStatusSlug(app.status);
+      const statusBadgeClass = `badge-${statusSlug}`;
+
+      bodyHtml += `
+        <div class="appointment-card app-status-${statusSlug}"
+             style="top: ${topPx}px; height: ${heightPx}px;"
+             data-app-id="${escapeHtml(app.id)}"
+             title="${escapeHtml(app.clientName)} - ${escapeHtml(app.deviceModel)} (${escapeHtml(app.technician)})">
+          <div class="app-card-time">
+            <span>${escapeHtml(app.startTime)}</span>
+            <span style="opacity: 0.8; font-size: 0.7rem;">(${escapeHtml(app.technician)})</span>
+          </div>
+          <div class="app-card-client">${escapeHtml(app.clientName)}</div>
+          <div class="app-card-part">${escapeHtml(app.partName)}</div>
+          <span class="app-card-badge ${statusBadgeClass}">${escapeHtml(app.status)}</span>
+        </div>
+      `;
+    });
+
+    bodyHtml += `</div>`;
+  });
+
+  bodyHtml += `</div>`;
+
+  boardEl.innerHTML = headerHtml + bodyHtml;
+
+  boardEl.querySelectorAll(".grid-slot").forEach(slot => {
+    slot.addEventListener("click", () => {
+      const time = slot.getAttribute("data-time");
+      const date = slot.getAttribute("data-date");
+      openNewAppointmentModal({
+        scheduledDate: date,
+        startTime: time,
+        technician: calendarState.selectedTechnician !== "all" ? calendarState.selectedTechnician : undefined
+      });
+    });
+  });
+
+  boardEl.querySelectorAll(".appointment-card").forEach(card => {
+    card.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const appId = card.getAttribute("data-app-id");
+      const app = state.appointments.find(a => a.id === appId);
+      if (app) openAppointmentDetailsModal(app);
+    });
+  });
+
+  lucide.createIcons();
+}
+
+function setupCalendarEventListeners() {
+  const btnPrev = document.getElementById("btn-cal-prev");
+  const btnNext = document.getElementById("btn-cal-next");
+  const btnToday = document.getElementById("btn-cal-today");
+  const dateInput = document.getElementById("calendar-date-input");
+  const dateBox = document.getElementById("cal-date-display-box");
+  const btnViewDaily = document.getElementById("btn-view-daily");
+  const btnViewWeekly = document.getElementById("btn-view-weekly");
+  const techFilter = document.getElementById("calendar-tech-filter");
+  const btnNewApp = document.getElementById("btn-new-appointment");
+  const btnToggleSidebar = document.getElementById("btn-toggle-pending-sidebar");
+
+  if (dateBox && dateInput) {
+    dateBox.addEventListener("click", () => {
+      if (typeof dateInput.showPicker === "function") {
+        dateInput.showPicker();
+      } else {
+        dateInput.focus();
+      }
+    });
+  }
+
+  if (dateInput) {
+    dateInput.addEventListener("change", (e) => {
+      if (e.target.value) {
+        calendarState.selectedDate = e.target.value;
+        renderCalendar();
+      }
+    });
+  }
+
+  if (btnToday) {
+    btnToday.addEventListener("click", () => {
+      calendarState.selectedDate = getLocalDateString(new Date());
+      renderCalendar();
+    });
+  }
+
+  if (btnPrev) {
+    btnPrev.addEventListener("click", () => {
+      const [year, month, day] = calendarState.selectedDate.split("-").map(Number);
+      const d = new Date(year, month - 1, day);
+      const step = calendarState.currentView === "weekly" ? 7 : 1;
+      d.setDate(d.getDate() - step);
+      calendarState.selectedDate = getLocalDateString(d);
+      renderCalendar();
+    });
+  }
+
+  if (btnNext) {
+    btnNext.addEventListener("click", () => {
+      const [year, month, day] = calendarState.selectedDate.split("-").map(Number);
+      const d = new Date(year, month - 1, day);
+      const step = calendarState.currentView === "weekly" ? 7 : 1;
+      d.setDate(d.getDate() + step);
+      calendarState.selectedDate = getLocalDateString(d);
+      renderCalendar();
+    });
+  }
+
+  if (btnViewDaily) {
+    btnViewDaily.addEventListener("click", () => {
+      calendarState.currentView = "daily";
+      renderCalendar();
+    });
+  }
+
+  if (btnViewWeekly) {
+    btnViewWeekly.addEventListener("click", () => {
+      calendarState.currentView = "weekly";
+      renderCalendar();
+    });
+  }
+
+  if (techFilter) {
+    techFilter.addEventListener("change", (e) => {
+      calendarState.selectedTechnician = e.target.value;
+      renderCalendar();
+    });
+  }
+
+  if (btnNewApp) {
+    btnNewApp.addEventListener("click", () => {
+      openNewAppointmentModal({
+        scheduledDate: calendarState.selectedDate,
+        startTime: "08:00"
+      });
+    });
+  }
+
+  if (btnToggleSidebar) {
+    btnToggleSidebar.addEventListener("click", () => {
+      const sidebar = document.getElementById("calendar-pending-sidebar");
+      if (sidebar) {
+        sidebar.classList.toggle("collapsed");
+        const isCollapsed = sidebar.classList.contains("collapsed");
+        btnToggleSidebar.innerHTML = isCollapsed
+          ? `<i data-lucide="chevrons-right"></i>`
+          : `<i data-lucide="chevrons-left"></i>`;
+        lucide.createIcons();
+      }
+    });
+  }
+}
+
+function setupAppointmentModals() {
+  const modal = document.getElementById("appointment-modal");
+  const form = document.getElementById("appointment-form");
+  const startTimeSelect = document.getElementById("app-start-time");
+
+  if (startTimeSelect) {
+    startTimeSelect.innerHTML = "";
+    for (let hour = 8; hour < 18; hour++) {
+      for (const minute of ["00", "30"]) {
+        const timeVal = `${String(hour).padStart(2, "0")}:${minute}`;
+        startTimeSelect.innerHTML += `<option value="${timeVal}">${timeVal}</option>`;
+      }
+    }
+  }
+
+  const radioPart = document.getElementById("source-part");
+  const radioOrder = document.getElementById("source-order");
+  const labelPart = document.getElementById("label-source-part");
+  const labelOrder = document.getElementById("label-source-order");
+  const partGroup = document.getElementById("app-part-group");
+
+  const syncSourceType = () => {
+    if (radioPart && radioPart.checked) {
+      if (labelPart) labelPart.classList.add("active");
+      if (labelOrder) labelOrder.classList.remove("active");
+      if (partGroup) partGroup.style.display = "block";
+    } else {
+      if (labelPart) labelPart.classList.remove("active");
+      if (labelOrder) labelOrder.classList.add("active");
+      if (partGroup) partGroup.style.display = "none";
+    }
+  };
+
+  if (radioPart) radioPart.addEventListener("change", syncSourceType);
+  if (radioOrder) radioOrder.addEventListener("change", syncSourceType);
+
+  const requestSelect = document.getElementById("app-request-select");
+  if (requestSelect) {
+    requestSelect.addEventListener("change", () => {
+      const reqId = requestSelect.value;
+      if (!reqId) return;
+      const req = state.requests.find(r => r.id === reqId);
+      if (req) {
+        document.getElementById("app-client-name").value = req.requester || "";
+        document.getElementById("app-order-id").value = req.orderId || "";
+        document.getElementById("app-device-model").value = req.deviceModel || "";
+        document.getElementById("app-device-model-code").value = req.deviceModelCode || "";
+        document.getElementById("app-imei").value = req.imei || "";
+        document.getElementById("app-part-name").value = req.partName || "";
+      }
+    });
+  }
+
+  if (form) {
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const alertBox = document.getElementById("app-conflict-alert");
+      const alertMsg = document.getElementById("app-conflict-message");
+      if (alertBox) alertBox.style.display = "none";
+
+      const editingId = document.getElementById("app-id").value;
+      const isPartSource = document.getElementById("source-part")?.checked;
+      const requestId = isPartSource ? document.getElementById("app-request-select").value : null;
+
+      const clientName = document.getElementById("app-client-name").value.trim();
+      const orderId = document.getElementById("app-order-id").value.trim();
+      const deviceModel = document.getElementById("app-device-model").value.trim();
+      const deviceModelCode = document.getElementById("app-device-model-code").value.trim();
+      const imei = document.getElementById("app-imei").value.trim();
+      const partName = document.getElementById("app-part-name").value.trim();
+      const technician = document.getElementById("app-technician").value;
+      const scheduledDate = document.getElementById("app-scheduled-date").value;
+      const startTime = document.getElementById("app-start-time").value;
+      const durationMinutes = Number(document.getElementById("app-duration").value) || 60;
+      const endTime = calculateEndTime(startTime, durationMinutes);
+      const notes = document.getElementById("app-notes").value.trim();
+
+      const payload = {
+        requestId: requestId || undefined,
+        orderId,
+        clientName,
+        deviceModel,
+        deviceModelCode,
+        imei,
+        partName,
+        technician,
+        scheduledDate,
+        startTime,
+        endTime,
+        durationMinutes,
+        notes
+      };
+
+      const conflict = checkAppointmentConflict(payload, editingId || null);
+      if (conflict) {
+        if (alertBox && alertMsg) {
+          alertMsg.textContent = `Conflito de agenda: o técnico ${technician} já possui o agendamento de "${conflict.clientName}" (${conflict.startTime} às ${conflict.endTime}) nesse horário.`;
+          alertBox.style.display = "flex";
+        }
+        return;
+      }
+
+      try {
+        if (editingId) {
+          const res = await api.updateAppointment(editingId, payload);
+          const updated = res.appointment;
+          const idx = state.appointments.findIndex(a => a.id === editingId);
+          if (idx !== -1) state.appointments[idx] = updated;
+          showToast("Agendamento atualizado com sucesso!");
+        } else {
+          const res = await api.createAppointment(payload);
+          const created = res.appointment;
+          state.appointments.push(created);
+          showToast("Reparo agendado com sucesso na bancada!");
+        }
+
+        modal.classList.remove("active");
+        renderCalendar();
+        renderPendingArrivedParts();
+        updateDashboard();
+      } catch (err) {
+        console.error(err);
+        if (alertBox && alertMsg) {
+          alertMsg.textContent = err.message || "Erro ao salvar agendamento.";
+          alertBox.style.display = "flex";
+        } else {
+          showToast(err.message || "Erro ao salvar agendamento.", "error");
+        }
+      }
+    });
+  }
+}
+
+function openNewAppointmentModal(defaults = {}) {
+  const modal = document.getElementById("appointment-modal");
+  if (!modal) return;
+
+  document.getElementById("appointment-modal-title").textContent = "Novo Agendamento de Reparo";
+  document.getElementById("app-id").value = "";
+  document.getElementById("appointment-form").reset();
+
+  const alertBox = document.getElementById("app-conflict-alert");
+  if (alertBox) alertBox.style.display = "none";
+
+  const techSelect = document.getElementById("app-technician");
+  if (techSelect) {
+    const techs = Array.isArray(state.settings.technicians) && state.settings.technicians.length > 0
+      ? state.settings.technicians
+      : ["Técnico 1", "Técnico 2"];
+    techSelect.innerHTML = techs.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join("");
+    if (defaults.technician && techs.includes(defaults.technician)) {
+      techSelect.value = defaults.technician;
+    }
+  }
+
+  const reqSelect = document.getElementById("app-request-select");
+  if (reqSelect) {
+    const delivered = state.requests.filter(r => r.status === "Entregue");
+    const unscheduled = delivered.filter(r => {
+      return !state.appointments.some(a => a.requestId === r.id && a.status !== "Cancelado");
+    });
+
+    reqSelect.innerHTML = `<option value="">-- Selecione uma peça entregue --</option>` +
+      unscheduled.map(r => `
+        <option value="${escapeHtml(r.id)}">${escapeHtml(r.requester)} - ${escapeHtml(r.deviceModel)} (${escapeHtml(r.partName)})</option>
+      `).join("");
+  }
+
+  const dateInput = document.getElementById("app-scheduled-date");
+  if (dateInput) {
+    dateInput.value = defaults.scheduledDate || calendarState.selectedDate || getLocalDateString(new Date());
+  }
+
+  const timeSelect = document.getElementById("app-start-time");
+  if (timeSelect && defaults.startTime) {
+    timeSelect.value = defaults.startTime;
+  }
+
+  if (defaults.requestId) {
+    document.getElementById("source-part").checked = true;
+    document.getElementById("label-source-part").classList.add("active");
+    document.getElementById("label-source-order").classList.remove("active");
+    document.getElementById("app-part-group").style.display = "block";
+
+    if (reqSelect) {
+      reqSelect.value = defaults.requestId;
+      const req = state.requests.find(r => r.id === defaults.requestId);
+      if (req) {
+        document.getElementById("app-client-name").value = req.requester || "";
+        document.getElementById("app-order-id").value = req.orderId || "";
+        document.getElementById("app-device-model").value = req.deviceModel || "";
+        document.getElementById("app-device-model-code").value = req.deviceModelCode || "";
+        document.getElementById("app-imei").value = req.imei || "";
+        document.getElementById("app-part-name").value = req.partName || "";
+      }
+    }
+  } else {
+    document.getElementById("source-part").checked = true;
+    document.getElementById("label-source-part").classList.add("active");
+    document.getElementById("label-source-order").classList.remove("active");
+    document.getElementById("app-part-group").style.display = "block";
+  }
+
+  modal.classList.add("active");
+  lucide.createIcons();
+}
+
+function openAppointmentDetailsModal(app) {
+  const modal = document.getElementById("appointment-details-modal");
+  if (!modal) return;
+
+  document.getElementById("detail-app-id").value = app.id;
+
+  const originTag = document.getElementById("detail-app-origin");
+  if (originTag) {
+    if (app.requestId) {
+      originTag.innerHTML = `<i data-lucide="package"></i> Peça PartSync`;
+      originTag.style.color = "var(--primary)";
+    } else {
+      originTag.innerHTML = `<i data-lucide="clipboard-list"></i> O.S. Externa`;
+      originTag.style.color = "var(--secondary)";
+    }
+  }
+
+  const orderTag = document.getElementById("detail-app-order");
+  if (orderTag) {
+    orderTag.textContent = app.orderId ? `O.S. #${app.orderId}` : "Sem Nº de O.S.";
+  }
+
+  const statusBadge = document.getElementById("detail-app-status-badge");
+  if (statusBadge) {
+    const statusSlug = getAppointmentStatusSlug(app.status);
+    statusBadge.className = `badge-status badge-${statusSlug}`;
+    statusBadge.textContent = app.status;
+  }
+
+  document.getElementById("detail-app-client").textContent = app.clientName || "-";
+  document.getElementById("detail-app-technician").textContent = app.technician || "-";
+  document.getElementById("detail-app-device").textContent = app.deviceModel || "-";
+
+  const codeImei = [
+    app.deviceModelCode ? `Mod: ${app.deviceModelCode}` : "",
+    app.imei ? `IMEI: ${app.imei}` : ""
+  ].filter(Boolean).join(" | ") || "-";
+  document.getElementById("detail-app-code-imei").textContent = codeImei;
+
+  document.getElementById("detail-app-part").textContent = app.partName || "-";
+
+  const datePt = formatDateDisplayPt(app.scheduledDate);
+  document.getElementById("detail-app-datetime").textContent = `${datePt} - ${app.startTime} às ${app.endTime} (${app.durationMinutes} min)`;
+
+  const notesEl = document.getElementById("detail-app-notes");
+  if (notesEl) {
+    notesEl.textContent = app.notes || "Nenhuma observação informada.";
+  }
+
+  modal.querySelectorAll(".btn-status-action").forEach(btn => {
+    const newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);
+
+    const targetStatus = newBtn.getAttribute("data-status");
+    newBtn.addEventListener("click", async () => {
+      try {
+        const res = await api.updateAppointment(app.id, { status: targetStatus });
+        const updated = res.appointment;
+        const idx = state.appointments.findIndex(a => a.id === app.id);
+        if (idx !== -1) state.appointments[idx] = updated;
+
+        showToast(`Status do reparo alterado para "${targetStatus}"!`);
+        modal.classList.remove("active");
+        renderCalendar();
+        renderPendingArrivedParts();
+        updateDashboard();
+      } catch (err) {
+        console.error(err);
+        showToast(err.message || "Erro ao atualizar status.", "error");
+      }
+    });
+  });
+
+  const deleteBtn = document.getElementById("btn-delete-appointment");
+  if (deleteBtn) {
+    const newDeleteBtn = deleteBtn.cloneNode(true);
+    deleteBtn.parentNode.replaceChild(newDeleteBtn, deleteBtn);
+
+    newDeleteBtn.addEventListener("click", async () => {
+      if (confirm(`Tem certeza que deseja excluir o agendamento de "${app.clientName}"?`)) {
+        try {
+          await api.deleteAppointment(app.id);
+          state.appointments = state.appointments.filter(a => a.id !== app.id);
+          showToast("Agendamento excluído.", "info");
+          modal.classList.remove("active");
+          renderCalendar();
+          renderPendingArrivedParts();
+          updateDashboard();
+        } catch (err) {
+          console.error(err);
+          showToast("Erro ao excluir agendamento.", "error");
+        }
+      }
+    });
+  }
+
+  const copyBtn = document.getElementById("btn-copy-repair-slip");
+  if (copyBtn) {
+    const newCopyBtn = copyBtn.cloneNode(true);
+    copyBtn.parentNode.replaceChild(newCopyBtn, copyBtn);
+
+    newCopyBtn.addEventListener("click", () => {
+      const slipText = generateRepairSlipText(app);
+      navigator.clipboard.writeText(slipText)
+        .then(() => showToast("Ficha do reparo copiada com sucesso!"))
+        .catch(() => showToast("Erro ao copiar ficha.", "error"));
+    });
+  }
+
+  const rescheduleBtn = document.getElementById("btn-reschedule-appointment");
+  if (rescheduleBtn) {
+    const newRescheduleBtn = rescheduleBtn.cloneNode(true);
+    rescheduleBtn.parentNode.replaceChild(newRescheduleBtn, rescheduleBtn);
+
+    newRescheduleBtn.addEventListener("click", () => {
+      modal.classList.remove("active");
+      openEditAppointmentModal(app);
+    });
+  }
+
+  modal.classList.add("active");
+  lucide.createIcons();
+}
+
+function generateRepairSlipText(app) {
+  const datePt = formatDateDisplayPt(app.scheduledDate);
+  return `📋 FICHA DE AGENDAMENTO DE REPARO - PARTSYNC
+------------------------------------------------
+Cliente: ${app.clientName}
+Aparelho: ${app.deviceModel}${app.deviceModelCode ? ` (${app.deviceModelCode})` : ""}
+IMEI: ${app.imei || "Não informado"}
+${app.orderId ? `Ordem de Serviço: ${app.orderId}\n` : ""}Peça: ${app.partName}
+Técnico Designado: ${app.technician}
+Agendamento: ${datePt}
+Horário: ${app.startTime} às ${app.endTime} (${app.durationMinutes} min)
+Status: ${app.status}
+Observações: ${app.notes || "Sem observações"}
+------------------------------------------------`;
+}
+
+function openEditAppointmentModal(app) {
+  openNewAppointmentModal({
+    scheduledDate: app.scheduledDate,
+    startTime: app.startTime,
+    technician: app.technician
+  });
+
+  document.getElementById("appointment-modal-title").textContent = "Reagendar / Editar Reparo";
+  document.getElementById("app-id").value = app.id;
+
+  if (app.requestId) {
+    document.getElementById("source-part").checked = true;
+    document.getElementById("label-source-part").classList.add("active");
+    document.getElementById("label-source-order").classList.remove("active");
+    document.getElementById("app-part-group").style.display = "block";
+    const reqSelect = document.getElementById("app-request-select");
+    if (reqSelect) reqSelect.value = app.requestId;
+  } else {
+    document.getElementById("source-order").checked = true;
+    document.getElementById("label-source-order").classList.add("active");
+    document.getElementById("label-source-part").classList.remove("active");
+    document.getElementById("app-part-group").style.display = "none";
+  }
+
+  document.getElementById("app-client-name").value = app.clientName || "";
+  document.getElementById("app-order-id").value = app.orderId || "";
+  document.getElementById("app-device-model").value = app.deviceModel || "";
+  document.getElementById("app-device-model-code").value = app.deviceModelCode || "";
+  document.getElementById("app-imei").value = app.imei || "";
+  document.getElementById("app-part-name").value = app.partName || "";
+  document.getElementById("app-technician").value = app.technician || "";
+  document.getElementById("app-scheduled-date").value = app.scheduledDate || "";
+  document.getElementById("app-start-time").value = app.startTime || "08:00";
+  document.getElementById("app-duration").value = String(app.durationMinutes || 60);
+  document.getElementById("app-notes").value = app.notes || "";
+}
+
