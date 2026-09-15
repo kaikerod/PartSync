@@ -64,6 +64,27 @@ export async function handleApiRequest({ method, pathname, body = {} }) {
     });
   }
 
+  if (method === "GET" && pathname === "/api/appointments") {
+    return jsonResult(200, await database.getAppointments());
+  }
+
+  if (method === "POST" && pathname === "/api/appointments") {
+    const appointment = await database.createAppointment(body);
+    return jsonResult(201, { appointment });
+  }
+
+  if (method === "PUT" && pathname.startsWith("/api/appointments/")) {
+    const id = decodeURIComponent(pathname.slice("/api/appointments/".length));
+    const appointment = await database.updateAppointment(id, body);
+    return jsonResult(200, { appointment });
+  }
+
+  if (method === "DELETE" && pathname.startsWith("/api/appointments/")) {
+    const id = decodeURIComponent(pathname.slice("/api/appointments/".length));
+    await database.deleteAppointment(id);
+    return jsonResult(200, { ok: true });
+  }
+
   if (method === "DELETE" && pathname === "/api/data") {
     return jsonResult(200, await database.reset());
   }

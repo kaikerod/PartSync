@@ -34,6 +34,10 @@
           <i data-lucide="layout-dashboard"></i>
           <span>Dashboard</span>
         </a>
+        <a href="#calendario" class="nav-item" data-target="calendar">
+          <i data-lucide="calendar"></i>
+          <span>Calendário</span>
+        </a>
         <a href="#nova-solicitacao" class="nav-item" data-target="new-request">
           <i data-lucide="plus-circle"></i>
           <span>Nova Solicitação</span>
@@ -133,6 +137,19 @@
               <span class="text-emerald">Prontas para uso em bancada</span>
             </div>
           </div>
+
+          <div class="kpi-card glow-cyan">
+            <div class="kpi-header">
+              <span class="kpi-title">Reparos Hoje</span>
+              <div class="kpi-icon bg-cyan-light">
+                <i data-lucide="calendar-check"></i>
+              </div>
+            </div>
+            <div class="kpi-value" id="kpi-repairs-today">0</div>
+            <div class="kpi-footer">
+              <span class="text-cyan"><span id="kpi-repairs-today-pending">0</span> agendados / em bancada</span>
+            </div>
+          </div>
         </div>
 
         <!-- Dashboard Layout -->
@@ -189,6 +206,80 @@
             <div class="recent-requests-mobile-list" id="recent-requests-mobile-list" aria-label="Solicitacoes recentes em lista compacta"></div>
           </div>
 
+        </div>
+      </section>
+
+      <!-- SECTION: CALENDAR -->
+      <section id="calendar" class="content-section">
+        <header class="section-header calendar-header">
+          <div class="calendar-title-group">
+            <h2>Calendário de Reparos</h2>
+            <p>Programação da bancada técnica por horários e técnicos responsáveis.</p>
+          </div>
+          <div class="calendar-controls">
+            <div class="calendar-nav-group">
+              <button id="btn-cal-prev" class="btn btn-secondary btn-sm btn-icon-only" title="Anterior">
+                <i data-lucide="chevron-left"></i>
+              </button>
+              <button id="btn-cal-today" class="btn btn-secondary btn-sm">Hoje</button>
+              <button id="btn-cal-next" class="btn btn-secondary btn-sm btn-icon-only" title="Próximo">
+                <i data-lucide="chevron-right"></i>
+              </button>
+              <div class="calendar-current-date-box" id="cal-date-display-box" title="Clique para escolher uma data">
+                <i data-lucide="calendar"></i>
+                <span id="calendar-current-date-label">Carregando...</span>
+                <input type="date" id="calendar-date-input" class="calendar-hidden-date-picker" aria-label="Escolher data">
+              </div>
+            </div>
+
+            <div class="calendar-view-group">
+              <div class="segmented-control" role="group" aria-label="Visualização do calendário">
+                <button type="button" class="segment-btn active" id="btn-view-daily" data-view="daily">
+                  <i data-lucide="columns-3"></i> Diária (Técnicos)
+                </button>
+                <button type="button" class="segment-btn" id="btn-view-weekly" data-view="weekly">
+                  <i data-lucide="calendar-range"></i> Semanal
+                </button>
+              </div>
+
+              <div class="calendar-filter-tech">
+                <select id="calendar-tech-filter" class="form-control-sm" aria-label="Filtrar por técnico">
+                  <option value="all">Todos os Técnicos</option>
+                </select>
+              </div>
+
+              <button id="btn-new-appointment" class="btn btn-primary btn-sm">
+                <i data-lucide="plus"></i> Novo Agendamento
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <div class="calendar-layout">
+          <!-- Side Drawer: Peças aguardando agendamento -->
+          <aside class="calendar-pending-sidebar" id="calendar-pending-sidebar">
+            <div class="pending-sidebar-header">
+              <div class="pending-title">
+                <i data-lucide="package-check"></i>
+                <span>Peças prontas</span>
+                <span class="badge badge-count" id="pending-repairs-badge">0</span>
+              </div>
+              <button type="button" id="btn-toggle-pending-sidebar" class="btn-icon-subtle" title="Recolher painel">
+                <i data-lucide="chevrons-left"></i>
+              </button>
+            </div>
+            <p class="pending-sidebar-hint">Peças entregues no PartSync aguardando agendamento:</p>
+            <div class="pending-repairs-list" id="pending-repairs-list">
+              <!-- Dynamically populated -->
+            </div>
+          </aside>
+
+          <!-- Calendar Board Container -->
+          <div class="calendar-board-container" id="calendar-board-container">
+            <div class="calendar-board" id="calendar-board">
+              <!-- Dynamically rendered -->
+            </div>
+          </div>
         </div>
       </section>
 
@@ -551,6 +642,29 @@
 
         <div class="settings-grid">
           
+          <!-- Technician Team Management -->
+          <div class="details-card settings-card">
+            <div class="card-header">
+              <h3><i data-lucide="users"></i> Equipe de Técnicos</h3>
+            </div>
+            <div class="card-body">
+              <p class="text-muted">Cadastre os técnicos da oficina para gerenciar as colunas da agenda e a atribuição de reparos.</p>
+              
+              <div class="technicians-manager" style="margin-top: 15px;">
+                <div class="tech-add-form" style="display: flex; gap: 10px; margin-bottom: 15px;">
+                  <input type="text" id="new-technician-name" placeholder="Nome do técnico (ex: Lucas)" style="flex: 1; padding: 10px 14px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-md); color: var(--text-primary);">
+                  <button type="button" id="btn-add-technician" class="btn btn-secondary">
+                    <i data-lucide="user-plus"></i> Adicionar
+                  </button>
+                </div>
+                
+                <div class="technicians-chips-list" id="technicians-chips-list" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                  <!-- Dynamically populated -->
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Backup & Data Management -->
           <div class="details-card settings-card">
             <div class="card-header">
@@ -585,6 +699,10 @@
     <a href="#dashboard" class="mobile-nav-item active" data-target="dashboard">
       <i data-lucide="layout-dashboard"></i>
       <span>Geral</span>
+    </a>
+    <a href="#calendario" class="mobile-nav-item" data-target="calendar">
+      <i data-lucide="calendar"></i>
+      <span>Agenda</span>
     </a>
     <a href="#nova-solicitacao" class="mobile-nav-item" data-target="new-request">
       <i data-lucide="plus-circle"></i>
@@ -635,7 +753,7 @@
     </div>
   </div>
 
-  <!-- MODAL: Bulk Status Update (Replaces Bulk WhatsApp message modal) -->
+  <!-- MODAL: Bulk Status Update -->
   <div id="bulk-status-modal" class="modal">
     <div class="modal-content modal-lg">
       <div class="modal-header">
@@ -671,6 +789,241 @@
         <button class="btn btn-primary" id="btn-confirm-bulk-status">
           <i data-lucide="check-square"></i> Aplicar em Lote
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Novo / Editar Agendamento -->
+  <div id="appointment-modal" class="modal">
+    <div class="modal-content modal-lg">
+      <div class="modal-header">
+        <h3 id="appointment-modal-title">Novo Agendamento de Reparo</h3>
+        <button class="close-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="appointment-form" autocomplete="off">
+          <input type="hidden" id="app-id">
+
+          <!-- Source Type Selector -->
+          <div class="form-group col-full" style="margin-bottom: 16px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 500;">Origem do Reparo <span class="required">*</span></label>
+            <div class="source-type-selector" role="radiogroup">
+              <label class="source-radio-label active" id="label-source-part">
+                <input type="radio" name="app-source" id="source-part" value="part" checked>
+                <span><i data-lucide="package-check"></i> Peça Entregue (PartSync)</span>
+              </label>
+              <label class="source-radio-label" id="label-source-order">
+                <input type="radio" name="app-source" id="source-order" value="order">
+                <span><i data-lucide="clipboard-list"></i> O.S. Externa (Outro Sistema)</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Section for PartSync arrived parts -->
+          <div id="app-part-group" class="app-origin-block" style="margin-bottom: 16px;">
+            <div class="form-group">
+              <label for="app-request-select">Selecione a Peça Pronta <span class="required">*</span></label>
+              <select id="app-request-select" class="form-control">
+                <option value="">-- Selecione uma peça entregue --</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Repair Details Form Grid -->
+          <div class="form-grid">
+            <div class="form-group col-half">
+              <label for="app-client-name">Nome do Cliente <span class="required">*</span></label>
+              <div class="input-with-icon">
+                <i data-lucide="user"></i>
+                <input type="text" id="app-client-name" required placeholder="Ex: João Silva">
+              </div>
+            </div>
+
+            <div class="form-group col-half">
+              <label for="app-order-id">Nº da O.S. (opcional)</label>
+              <div class="input-with-icon">
+                <i data-lucide="file-text"></i>
+                <input type="text" id="app-order-id" placeholder="Ex: OS-9812">
+              </div>
+            </div>
+
+            <div class="form-group col-half">
+              <label for="app-device-model">Modelo do Dispositivo <span class="required">*</span></label>
+              <div class="input-with-icon">
+                <i data-lucide="smartphone"></i>
+                <input type="text" id="app-device-model" required placeholder="Ex: Galaxy S24 Ultra">
+              </div>
+            </div>
+
+            <div class="form-group col-half">
+              <label for="app-device-model-code">Código do Modelo</label>
+              <div class="input-with-icon">
+                <i data-lucide="barcode"></i>
+                <input type="text" id="app-device-model-code" placeholder="Ex: SM-S928B">
+              </div>
+            </div>
+
+            <div class="form-group col-half">
+              <label for="app-imei">IMEI</label>
+              <div class="input-with-icon">
+                <i data-lucide="hash"></i>
+                <input type="text" id="app-imei" placeholder="Ex: 351234567890123" maxlength="15">
+              </div>
+            </div>
+
+            <div class="form-group col-half">
+              <label for="app-part-name">Peça a Reparar <span class="required">*</span></label>
+              <div class="input-with-icon">
+                <i data-lucide="tool"></i>
+                <input type="text" id="app-part-name" required placeholder="Ex: Display UB, Bateria...">
+              </div>
+            </div>
+
+            <div class="form-group col-half">
+              <label for="app-technician">Técnico Designado <span class="required">*</span></label>
+              <div class="input-with-icon">
+                <i data-lucide="user-check"></i>
+                <select id="app-technician" required class="form-control">
+                  <!-- Dynamically populated -->
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group col-half">
+              <label for="app-scheduled-date">Data do Reparo <span class="required">*</span></label>
+              <div class="input-with-icon">
+                <i data-lucide="calendar"></i>
+                <input type="date" id="app-scheduled-date" required>
+              </div>
+            </div>
+
+            <div class="form-group col-half">
+              <label for="app-start-time">Horário de Início (08:00 - 18:00) <span class="required">*</span></label>
+              <div class="input-with-icon">
+                <i data-lucide="clock"></i>
+                <select id="app-start-time" required class="form-control">
+                  <!-- 08:00 to 17:30 in 30min increments -->
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group col-half">
+              <label for="app-duration">Duração Estimada <span class="required">*</span></label>
+              <div class="input-with-icon">
+                <i data-lucide="timer"></i>
+                <select id="app-duration" required class="form-control">
+                  <option value="30">30 minutos</option>
+                  <option value="60" selected>1 hora (60 min)</option>
+                  <option value="90">1 hora e 30 min (90 min)</option>
+                  <option value="120">2 horas (120 min)</option>
+                  <option value="180">3 horas (180 min)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group col-full">
+              <label for="app-notes">Observações do Reparo</label>
+              <textarea id="app-notes" rows="2" placeholder="Instruções para a bancada, testes requeridos, etc."></textarea>
+            </div>
+          </div>
+
+          <!-- Conflict Warning Banner -->
+          <div id="app-conflict-alert" class="conflict-alert" style="display: none;">
+            <i data-lucide="alert-triangle"></i>
+            <span id="app-conflict-message"></span>
+          </div>
+
+          <div class="modal-footer" style="margin-top: 20px;">
+            <button type="button" class="btn btn-secondary close-modal">Cancelar</button>
+            <button type="submit" id="btn-save-appointment" class="btn btn-primary">
+              <i data-lucide="check"></i> Confirmar Agendamento
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Detalhes e Gestão do Agendamento -->
+  <div id="appointment-details-modal" class="modal">
+    <div class="modal-content modal-lg">
+      <div class="modal-header">
+        <div class="modal-title-with-badge">
+          <h3>Ficha do Reparo</h3>
+          <span id="detail-app-status-badge" class="badge-status">Agendado</span>
+        </div>
+        <button class="close-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="detail-app-id">
+
+        <div class="repair-summary-card">
+          <div class="summary-meta-header">
+            <span id="detail-app-origin" class="tag-origin"><i data-lucide="package"></i> Peça PartSync</span>
+            <span id="detail-app-order" class="tag-order">O.S. #--</span>
+          </div>
+
+          <div class="summary-details-grid">
+            <div class="sum-item">
+              <span class="sum-label">Cliente:</span>
+              <span class="sum-value" id="detail-app-client">-</span>
+            </div>
+            <div class="sum-item">
+              <span class="sum-label">Técnico:</span>
+              <span class="sum-value font-semibold text-primary" id="detail-app-technician">-</span>
+            </div>
+            <div class="sum-item">
+              <span class="sum-label">Aparelho:</span>
+              <span class="sum-value" id="detail-app-device">-</span>
+            </div>
+            <div class="sum-item">
+              <span class="sum-label">Código / IMEI:</span>
+              <span class="sum-value" id="detail-app-code-imei">-</span>
+            </div>
+            <div class="sum-item">
+              <span class="sum-label">Peça Solicitada:</span>
+              <span class="sum-value" id="detail-app-part">-</span>
+            </div>
+            <div class="sum-item">
+              <span class="sum-label">Data e Horário:</span>
+              <span class="sum-value" id="detail-app-datetime">-</span>
+            </div>
+          </div>
+
+          <div class="summary-notes-block" id="detail-app-notes-block" style="margin-top: 15px;">
+            <span class="sum-label">Observações da Bancada:</span>
+            <p id="detail-app-notes" class="sum-notes-text">Nenhuma observação informada.</p>
+          </div>
+        </div>
+
+        <!-- Quick Status Transitions -->
+        <div class="status-action-row" style="margin-top: 20px;">
+          <span class="status-action-label" style="display: block; margin-bottom: 10px; font-weight: 500; font-size: 0.9rem; color: var(--text-secondary);">Alterar Status do Reparo:</span>
+          <div class="status-buttons-group">
+            <button type="button" class="btn btn-status-action btn-status-progress" data-status="Em Reparo">
+              <i data-lucide="play"></i> Iniciar Reparo
+            </button>
+            <button type="button" class="btn btn-status-action btn-status-done" data-status="Concluído">
+              <i data-lucide="check-circle-2"></i> Concluir Reparo
+            </button>
+            <button type="button" class="btn btn-status-action btn-status-cancel" data-status="Cancelado">
+              <i data-lucide="x-circle"></i> Cancelar Agendamento
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+        <button type="button" id="btn-delete-appointment" class="btn btn-danger btn-sm">
+          <i data-lucide="trash-2"></i> Excluir
+        </button>
+        <div style="display: flex; gap: 10px;">
+          <button type="button" id="btn-copy-repair-slip" class="btn btn-secondary btn-sm">
+            <i data-lucide="copy"></i> Copiar Ficha Técnica
+          </button>
+          <button type="button" id="btn-reschedule-appointment" class="btn btn-primary btn-sm">
+            <i data-lucide="calendar-clock"></i> Reagendar / Editar
+          </button>
+        </div>
       </div>
     </div>
   </div>

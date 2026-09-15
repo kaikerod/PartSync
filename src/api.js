@@ -38,6 +38,30 @@ export const api = {
     });
   },
 
+  getAppointments() {
+    return request("/api/appointments");
+  },
+
+  createAppointment(appointment) {
+    return request("/api/appointments", {
+      method: "POST",
+      body: appointment
+    });
+  },
+
+  updateAppointment(id, appointment) {
+    return request(`/api/appointments/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      body: appointment
+    });
+  },
+
+  deleteAppointment(id) {
+    return request(`/api/appointments/${encodeURIComponent(id)}`, {
+      method: "DELETE"
+    });
+  },
+
   migrate({ requests, settings }) {
     return request("/api/migrate", {
       method: "POST",
